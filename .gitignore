@@ -1,0 +1,6 @@
+# local settings (contains credentials)
+settings.json
+*.bak-*
+node_modules/
+tmp/
+logs/
