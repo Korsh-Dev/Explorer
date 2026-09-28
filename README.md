@@ -21,6 +21,32 @@ Written in Node.js and MongoDB and built on top of [eIquidus](https://github.com
 - Works with `txindex=0` daemons: spent-input addresses are resolved from locally indexed block data instead of relying on the node's transaction index
 - Themeable UI with multi-language support
 
+## Security & Hardening
+
+Korsh Explorer has undergone comprehensive security audits and hardening to ensure production reliability, resilience against malicious payloads, and high-performance concurrency:
+
+- **Web Security & Input Validation:**
+  - **Host Header Poisoning & RPC Protection:** Enforces strict domain allowlists and regex validation preventing SSRF and DNS rebinding attacks against internal RPC interfaces.
+  - **Cross-Site Scripting (XSS) Mitigation:** Context-aware HTML entity sanitization applied across dynamic inputs, chart datasets, and Pug templates (`market.pug`, `masternodes.pug`, `claim_address.pug`).
+  - **AJAX Header Spoofing Defense:** State-changing and AJAX-only endpoints utilize cryptographically generated HMAC session tokens (`X-Requested-With-Token`) rather than relying purely on client-supplied headers.
+  - **ReDoS Protection:** User input supplied to regular expressions across search and routing handlers is safely escaped to eliminate catastrophic backtracking.
+  - **Safe Object Property Traversal:** Replaced dynamic string evaluations (`eval()`) with safe path-traversal primitives (`setByString`, `deleteByString`).
+  - **QR Code DoS Prevention:** Strict payload length limitations (maximum 500 characters) enforced on dynamic QR generation routes.
+  - **Sensitive Data Redaction:** Database connection strings, credentials, and authentication tokens are masked prior to being written to system logs.
+
+- **Concurrency & Process Stability:**
+  - **Deadlock-Free Sync Queue:** Multi-threaded block synchronizer implements strict slot release (`async.queue` callback safety) under all error paths and network timeouts.
+  - **Atomic Queue Flow:** Guaranteed retry backoff counter increments to prevent runaway infinite polling loops on unreachable peers.
+  - **Process Management:** Fully compatible with modern Node.js cluster APIs (`cluster.isPrimary`) and robust cross-platform worker process lifecycle management (Linux & Windows).
+
+- **Database Integrity & Math Safety:**
+  - **NoSQL Injection Defenses:** Parameterized query sanitization and explicit primitive type verification across all API and claim endpoints.
+  - **Safe Decimal Arithmetic:** High-precision monetary calculations leverage `bignumber.js` and `Decimal.js` with zero-division guards across supply, distribution, and market conversion endpoints.
+  - **Strict Scoping:** Full elimination of accidental global variable declarations (`global.i`, undeclared iterators) to prevent context pollution.
+
+- **Dependency Security Overrides:**
+  - Core transitive dependencies patched against known CVEs via `package.json` overrides (`minimist`, `braces`, `micromatch`, `form-data`, `nconf`, `tough-cookie`, `decode-uri-component`, `js-yaml`, `qs`).
+
 ## Requirements
 
 | Software | Recommended |

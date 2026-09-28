@@ -168,7 +168,8 @@ block content
       block market_view
         script.
           $(document).ready(function() {
-            let chartData = !{(marketdata.data.chartdata == null || marketdata.data.chartdata == 'null' || marketdata.data.chartdata == '' || marketdata.data.chartdata == '[]' ? 'null' : marketdata.data.chartdata)};
+            let rawChartData = !{JSON.stringify(marketdata.data.chartdata)};
+            let chartData = (typeof rawChartData === 'string' ? (rawChartData && rawChartData !== 'null' && rawChartData !== '[]' ? JSON.parse(rawChartData) : null) : rawChartData);
 
             if (chartData != null) {
               chartData = chartData.map(function(item) {

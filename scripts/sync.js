@@ -514,7 +514,7 @@ function get_orphaned_txids(block_hash, cb) {
       var txids = [];
 
       // populate an array of txids without the object data
-      for (t = 0; t < txes.length; t++)
+      for (let t = 0; t < txes.length; t++)
         txids.push(txes[t].txid);
 
       return cb(txids, null);

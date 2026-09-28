@@ -23,6 +23,10 @@ process.on('SIGTERM', () => {
   blkSync.setStopSync(true);
 });
 
+function sanitizeDbUri(uri) {
+  return (uri || '').replace(/:\/\/([^:]+):([^@]+)@/, '://$1:***@');
+}
+
 function exit(exitCode) {
   mongoose.disconnect();
   process.exit(exitCode);
@@ -89,7 +93,7 @@ function check_create_user(cb) {
         });
     })
     .catch((err) => {
-      console.log('Error: Unable to connect to database: %s', dbString);
+      console.log('Error: Unable to connect to database: %s', sanitizeDbUri(dbString));
       exit(999);
     });
   } else
@@ -229,7 +233,7 @@ check_create_user(function() {
       });
     });
   }).catch((err) => {
-    console.log('Error: Unable to connect to database: %s', dbString);
+    console.log('Error: Unable to connect to database: %s', sanitizeDbUri(dbString));
     exit(999);
   });
 });

@@ -25,13 +25,19 @@ function init_database(cb) {
   });
 }
 
+function getGitCommit() {
+  try {
+    return execSync('git rev-parse HEAD', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+  } catch (e) {
+    return null;
+  }
+}
+
 // check if the script should check for code updates
 if (argument == '' || argument == 'explorer-only') {
-  // check if the .git directory and .git/refs/heads/master file exist
-  if (fs.existsSync('./.git') && fs.existsSync('./.git/refs/heads/master')) {
-    // get the current commit hash
-    var commit = fs.readFileSync('./.git/refs/heads/master');
-
+  // check if git repository exists
+  const commit = getGitCommit();
+  if (commit != null) {
     // update to newest explorer source
     console.log(`${settings.localization.downloading_newest_explorer_code}.. ${settings.localization.please_wait}..\n`);
 
@@ -40,10 +46,10 @@ if (argument == '' || argument == 'explorer-only') {
       execSync('git pull', {stdio : 'inherit'});
 
       // get the current commit hash to see if it has changed
-      var new_commit = fs.readFileSync('./.git/refs/heads/master');
+      const new_commit = getGitCommit();
 
       // check if the commit values are the same
-      if (new_commit.toString() == commit.toString()) {
+      if (new_commit === commit) {
         // explorer code was already up-to-date
         console.log('\nExplorer code is already up-to-date');
       } else {

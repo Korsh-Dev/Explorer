@@ -17,10 +17,11 @@ function check_webserver_running(cb) {
         // check if the port is open
         if (stdout != null && stdout != '') {
           // split the results in case there are multiple (usually because of ipv4 and ipv6)
-          split = stdout.split('\n');
+          const split = stdout.trim().split(/\r?\n/);
+          const pid = split[0].trim();
 
           // return the kill cmd
-          return cb(`taskkill /f /pid ${split[0]}`);
+          return cb(`taskkill /f /pid ${pid}`);
         } else
           return cb(null);
       });

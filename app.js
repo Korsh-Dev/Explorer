@@ -15,6 +15,33 @@ var viewPaths = [path.join(__dirname, 'views')]
 var pluginRoutes = [];
 const { exec } = require('child_process');
 const Decimal = require('decimal.js');
+const crypto = require('crypto');
+const internalSecret = crypto.randomBytes(32).toString('hex');
+
+function getInternalToken(ip) {
+  return crypto.createHmac('sha256', internalSecret).update(ip || '').digest('hex');
+}
+
+function isInternalAjaxRequest(req) {
+  const isXhr = (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() === 'xmlhttprequest');
+  const clientIp = (req.socket && req.socket.remoteAddress) || req.ip;
+  const token = req.cookies ? req.cookies['explorer_token'] : null;
+  const validToken = token && token === getInternalToken(clientIp);
+
+  let validReferer = false;
+  if (req.headers.referer && req.headers.host) {
+    try {
+      const refererUrl = new URL(req.headers.referer);
+      if (refererUrl.host === req.headers.host) {
+        validReferer = true;
+      }
+    } catch (e) {
+      validReferer = false;
+    }
+  }
+
+  return (validToken || validReferer) && isXhr;
+}
 
 // pass wallet rpc connection info to nodeapi
 nodeapi.setWalletDetails(settings.wallet);
@@ -170,6 +197,14 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(function(req, res, next) {
+  const clientIp = (req.socket && req.socket.remoteAddress) || req.ip;
+  const token = getInternalToken(clientIp);
+  if (!req.cookies || req.cookies['explorer_token'] !== token) {
+    res.cookie('explorer_token', token, { sameSite: 'strict', httpOnly: true });
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // routes
@@ -183,6 +218,15 @@ pluginRoutes.forEach(function (r) {
 
 // post method to claim an address using verifymessage functionality
 app.post('/claim', function(req, res) {
+  if (!req.body || typeof req.body !== 'object') {
+    return res.json({'status': 'failed', 'error': true, 'message': 'Invalid request body'});
+  }
+
+  // Ensure address, signature, and message are valid strings
+  if (typeof req.body.address !== 'string' || typeof req.body.signature !== 'string' || typeof req.body.message !== 'string') {
+    return res.json({'status': 'failed', 'error': true, 'message': 'Wallet address, signature, and message must be valid text'});
+  }
+
   // validate captcha if applicable
   validate_captcha(settings.claim_address_page.enable_captcha, req.body, function(captcha_error) {
     // check if there was a problem with captcha
@@ -443,7 +487,7 @@ app.use('/ext/getaddress/:hash', function(req, res) {
         if (address) {
           let last_txs = [];
 
-          for (i = 0; i < txs.length; i++) {
+          for (let i = 0; i < txs.length; i++) {
             if (typeof txs[i].txid !== "undefined") {
               let out = new Decimal('0');
               let vin = new Decimal('0');
@@ -504,7 +548,7 @@ app.use('/ext/gettx/:txid', function(req, res) {
               lib.prepare_vout(rtx.vout, rtx.txid, vin, ((typeof rtx.vjoinsplit === 'undefined' || rtx.vjoinsplit == null) ? [] : rtx.vjoinsplit), function(rvout, rvin, tx_type_vout) {
                 const total = lib.calculate_total(rvout);
 
-                if (!rtx.confirmations > 0) {
+                if (!(rtx.confirmations > 0)) {
                   var utx = {
                     txid: rtx.txid,
                     vin: rvin,
@@ -576,7 +620,10 @@ app.use('/ext/getcurrentprice', function(req, res) {
     db.get_stats(settings.coin.name, function (stats) {
       const currency = lib.get_market_currency_code();
 
-      eval('var p_ext = { "last_price_' + currency.toLowerCase() + '": new Decimal(stats.last_price.toString()).toFixed(), "last_price_usd": new Decimal(stats.last_usd_price.toString()).toFixed(), }');
+      var p_ext = {
+        [`last_price_${currency.toLowerCase()}`]: new Decimal(stats && stats.last_price != null ? stats.last_price.toString() : '0').toFixed(),
+        last_price_usd: new Decimal(stats && stats.last_usd_price != null ? stats.last_usd_price.toString() : '0').toFixed()
+      };
       res.send(p_ext);
     });
   } else
@@ -594,12 +641,23 @@ app.use('/ext/getbasicstats', function(req, res) {
       if (settings.api_page.public_apis.rpc.getmasternodecount.enabled == true && settings.api_cmds['getmasternodecount'] != null && settings.api_cmds['getmasternodecount'] != '') {
         // masternode count api is available
         lib.get_masternodecount(function(masternodestotal) {
-          eval('var p_ext = { "block_count": (stats.count ? stats.count : 0), "money_supply": new Decimal(stats.supply == null ? "0" : stats.supply.toString()).toFixed(), "last_price_' + currency.toLowerCase() + '": new Decimal(stats.last_price.toString()).toFixed(), "last_price_usd": new Decimal(stats.last_usd_price.toString()).toFixed(), "masternode_count": (masternodestotal == null ? 0 : masternodestotal.total) }');
+          var p_ext = {
+            block_count: (stats && stats.count ? stats.count : 0),
+            money_supply: new Decimal((stats && stats.supply != null) ? stats.supply.toString() : "0").toFixed(),
+            [`last_price_${currency.toLowerCase()}`]: new Decimal((stats && stats.last_price != null) ? stats.last_price.toString() : '0').toFixed(),
+            last_price_usd: new Decimal((stats && stats.last_usd_price != null) ? stats.last_usd_price.toString() : '0').toFixed(),
+            masternode_count: (masternodestotal == null ? 0 : masternodestotal.total)
+          };
           res.send(p_ext);
         });
       } else {
         // masternode count api is not available
-        eval('var p_ext = { "block_count": (stats.count ? stats.count : 0), "money_supply": new Decimal(stats.supply == null ? "0" : stats.supply.toString()).toFixed(), "last_price_' + currency.toLowerCase() + '": new Decimal(stats.last_price.toString()).toFixed(), "last_price_usd": new Decimal(stats.last_usd_price.toString()).toFixed() }');
+        var p_ext = {
+          block_count: (stats && stats.count ? stats.count : 0),
+          money_supply: new Decimal((stats && stats.supply != null) ? stats.supply.toString() : "0").toFixed(),
+          [`last_price_${currency.toLowerCase()}`]: new Decimal((stats && stats.last_price != null) ? stats.last_price.toString() : '0').toFixed(),
+          last_price_usd: new Decimal((stats && stats.last_usd_price != null) ? stats.last_usd_price.toString() : '0').toFixed()
+        };
         res.send(p_ext);
       }
     });
@@ -608,8 +666,8 @@ app.use('/ext/getbasicstats', function(req, res) {
 });
 
 app.use('/ext/getlasttxs/:min', function(req, res) {
-  // check if the getlasttxs api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getlasttxs.enabled == true) || (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1)) {
+  // check if the getlasttxs api is enabled or else check if it matches an internal ajax request from the explorer itself
+  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getlasttxs.enabled == true) || isInternalAjaxRequest(req)) {
     var min = req.params.min, start, length, internal = false;
     // split url suffix by forward slash and remove blank entries
     var split = req.url.split('/').filter(function(v) { return v; });
@@ -661,8 +719,8 @@ app.use('/ext/getlasttxs/:min', function(req, res) {
 });
 
 app.use('/ext/getaddresstxs/:address/:start/:length', function(req, res) {
-  // check if the getaddresstxs api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getaddresstxs.enabled == true) || (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1)) {
+  // check if the getaddresstxs api is enabled or else check if it matches an internal ajax request from the explorer itself
+  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getaddresstxs.enabled == true) || isInternalAjaxRequest(req)) {
     let internal = false;
 
     // split url suffix by forward slash and remove blank entries
@@ -685,7 +743,7 @@ app.use('/ext/getaddresstxs/:address/:start/:length', function(req, res) {
     db.get_address_txs_ajax(req.params.address, req.params.start, req.params.length, function(txs, count) {
       let data = [];
 
-      for (i = 0; i < txs.length; i++) {
+      for (let i = 0; i < txs.length; i++) {
         if (typeof txs[i].txid !== "undefined") {
           const balance = new Decimal(txs[i].balance.toString());
           let out = new Decimal('0');
@@ -891,12 +949,12 @@ app.use('/ext/getnetworkpeers', function(req, res) {
 
 // get the list of masternodes from local collection
 app.use('/ext/getmasternodelist', function(req, res) {
-  // check if the getmasternodelist api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getmasternodelist.enabled == true) || (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1)) {
+  // check if the getmasternodelist api is enabled or else check if it matches an internal ajax request from the explorer itself
+  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getmasternodelist.enabled == true) || isInternalAjaxRequest(req)) {
     // get the masternode list from local collection
     db.get_masternodes(function(masternodes) {
       // loop through masternode list and remove the mongo _id and __v keys
-      for (i = 0; i < masternodes.length; i++) {
+      for (let i = 0; i < masternodes.length; i++) {
         delete masternodes[i]['_doc']['_id'];
         delete masternodes[i]['_doc']['__v'];
       }
@@ -915,7 +973,7 @@ app.use('/ext/getmasternoderewards/:hash/:since', function(req, res) {
     db.get_masternode_rewards(req.params.hash, req.params.since, function(rewards) {
       if (rewards != null) {
         // loop through the tx list to fix vout values and remove unnecessary data such as the always empty vin array and the mongo _id and __v keys
-        for (i = 0; i < rewards.length; i++) {
+        for (let i = 0; i < rewards.length; i++) {
           // remove unnecessary data keys
           delete rewards[i]['vin'];
           delete rewards[i]['_id'];
@@ -952,8 +1010,8 @@ app.use('/ext/getmasternoderewardstotal/:hash/:since', function(req, res) {
 
 // get the list of orphans from local collection
 app.use('/ext/getorphanlist/:start/:length', function(req, res) {
-  // check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1) {
+  // check if it matches an internal ajax request from the explorer itself
+  if (isInternalAjaxRequest(req)) {
     // fix parameters
     if (typeof req.params.start === 'undefined' || isNaN(req.params.start) || req.params.start < 0)
       req.params.start = 0;
@@ -964,7 +1022,7 @@ app.use('/ext/getorphanlist/:start/:length', function(req, res) {
     db.get_orphans(req.params.start, req.params.length, function(orphans, count) {
       var data = [];
 
-      for (i = 0; i < orphans.length; i++) {
+      for (let i = 0; i < orphans.length; i++) {
         var row = [];
 
         row.push(orphans[i].blockindex);
@@ -985,8 +1043,8 @@ app.use('/ext/getorphanlist/:start/:length', function(req, res) {
 
 // get the last updated date for a particular section
 app.use('/ext/getlastupdated/:section', function(req, res) {
-  // check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1) {
+  // check if it matches an internal ajax request from the explorer itself
+  if (isInternalAjaxRequest(req)) {
     // fix parameters
     if (req.params.section == null)
       req.params.section = '';
@@ -1017,7 +1075,9 @@ app.use('/ext/getnetworkchartdata', function(req, res) {
 
 app.use('/system/restartexplorer', function(req, res, next) {
   // check to ensure this special cmd is only executed by the local server
-  if (req._remoteAddress != null && req._remoteAddress.indexOf('127.0.0.1') > -1) {
+  const remoteIp = (req.socket && req.socket.remoteAddress) || req.ip;
+  const isLocal = remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1';
+  if (isLocal) {
     // send a msg to the cluster process telling it to restart
     process.send('restart');
     res.end();
@@ -1043,7 +1103,14 @@ if (settings.markets_page.enabled == true) {
         // load market file
         var exMarket = require('./lib/markets/' + key);
         // save market_name and market_logo from market file to settings
-        eval('market_data.push({id: "' + key + '", name: "' + (exMarket.market_name == null ? '' : exMarket.market_name) + '", alt_name: "' + (exMarket.market_name_alt == null ? '' : exMarket.market_name_alt) + '", logo: "' + (exMarket.market_logo == null ? '' : exMarket.market_logo) + '", alt_logo: "' + (exMarket.market_logo_alt == null ? '' : exMarket.market_logo_alt) + '", trading_pairs: []});');
+        market_data.push({
+          id: key,
+          name: (exMarket.market_name == null ? '' : exMarket.market_name),
+          alt_name: (exMarket.market_name_alt == null ? '' : exMarket.market_name_alt),
+          logo: (exMarket.market_logo == null ? '' : exMarket.market_logo),
+          alt_logo: (exMarket.market_logo_alt == null ? '' : exMarket.market_logo_alt),
+          trading_pairs: []
+        });
         // loop through all trading pairs for this market
         for (var i = 0; i < settings.markets_page.exchanges[key].trading_pairs.length; i++) {
           var isAlt = false;

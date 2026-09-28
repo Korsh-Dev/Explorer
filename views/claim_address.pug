@@ -66,15 +66,20 @@ block content
             }
           }
         });
-        if ('!{hash}' != 'null' && '!{hash}' != '') {
+        var initialHash = !{JSON.stringify(hash || '')};
+        var initialClaimName = !{JSON.stringify(claim_name || '')};
+        if (initialHash != null && initialHash != 'null' && initialHash != '') {
           $('<div id="claimAlert"></div>').insertBefore('#claimForm');
-          $('#claimAlert').html(generateAlertHTML('info', true, ('!{claim_name}' == '' ? 'Unc' : 'C') + 'laimed address', '<strong>!{hash}</strong> is currently ' + ('!{claim_name}' == '' ? 'un' : '') + 'claimed' + ('!{claim_name}' == '' ? '' : ' as <strong>' + displayAsText('!{claim_name}') + '.</strong>')));
+          var isClaimed = initialClaimName != '';
+          var safeHeader = isClaimed ? 'Claimed address' : 'Unclaimed address';
+          var safeStatus = '<strong>' + displayAsText(initialHash) + '</strong> is currently ' + (isClaimed ? '' : 'un') + 'claimed' + (isClaimed ? ' as <strong>' + displayAsText(initialClaimName) + '.</strong>' : '.');
+          $('#claimAlert').html(generateAlertHTML('info', true, safeHeader, safeStatus));
         }
         if (#{settings.shared_pages.page_header.page_title_image.enable_animation} == true && #{settings.claim_address_page.page_header.show_img} == true)
           startRotateElement('img#header-img');
       });
       function displayAsText(str) {
-        return str.replace(/</g, '&#60;').replace(/>/g, '&#62;');
+        return $('<div>').text(str == null ? '' : str).html();
       }
       function showClaimAlert(claimClass, warnMsg, removedClaim) {
         if ($('#claimAlert').length == 0)

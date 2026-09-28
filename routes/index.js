@@ -275,7 +275,7 @@ function route_get_tx(res, txid) {
               lib.prepare_vout(rtx.vout, rtx.txid, vin, ((!settings.blockchain_specific.zksnarks.enabled || typeof rtx.vjoinsplit === 'undefined' || rtx.vjoinsplit == null) ? [] : rtx.vjoinsplit), function(rvout, rvin, tx_type_vout) {
                 const total = lib.calculate_total(rvout);
 
-                if (!rtx.confirmations > 0) {
+                if (!(rtx.confirmations > 0)) {
                   lib.get_block(rtx.blockhash, function(block) {
                     if (block && block != `${settings.localization.ex_error}: ${settings.localization.check_console}`) {
                       var utx = {
@@ -559,7 +559,7 @@ router.get('/markets/:market/:coin_symbol/:pair_symbol', function(req, res) {
                     marketdata.data.summary.change = lib.format_decimal_string(new Decimal(marketdata.data.summary.change.toString()), { minFractionDigits: 2, maxFractionDigits: 2 });
 
                   marketdata.data.summary.change_num = new Decimal(marketdata.data.summary.change.toString()).toNumber();
-                } else if (marketdata.data.summary.last != 0) {
+                } else if (!new Decimal(marketdata.data.summary.last.toString()).isZero()) {
                   marketdata.data.summary.change = lib.format_decimal_string(new Decimal('100').minus(new Decimal(marketdata.data.summary.prev.toString()).div(marketdata.data.summary.last.toString()).times('100')), { minFractionDigits: 2, maxFractionDigits: 2 });
                   marketdata.data.summary.change_num = new Decimal('100').minus(new Decimal(marketdata.data.summary.prev.toString()).div(marketdata.data.summary.last.toString()).times('100')).toNumber();
                 } else {
@@ -914,6 +914,10 @@ router.get('/orphans', function(req, res) {
 
 router.post('/search', function(req, res) {
   if (settings.shared_pages.page_header.search.enabled == true) {
+    if (!req.body || typeof req.body.search !== 'string' || req.body.search.trim() === '') {
+      return route_get_txlist(res, 'Invalid search query');
+    }
+
     var query = req.body.search.trim();
 
     if (query.length == 64) {
@@ -964,6 +968,10 @@ router.post('/search', function(req, res) {
 
 router.get('/qr/:string', function(req, res) {
   if (req.params.string) {
+    if (req.params.string.length > 500) {
+      return res.status(400).send('Input string too long');
+    }
+
     const qr = require('qr-image');
 
     var address = qr.image(req.params.string, {
@@ -975,6 +983,8 @@ router.get('/qr/:string', function(req, res) {
 
     res.type('png');
     address.pipe(res);
+  } else {
+    res.status(400).send('Missing string');
   }
 });
 

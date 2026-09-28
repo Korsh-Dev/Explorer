@@ -104,7 +104,9 @@ block content
               else
                 json[i]['activetime'] = '<em>N/A</em>';
 
-              json[i]['addr'] = "<a href='/address/" + json[i]['addr'] + "'>" + json[i]['addr'] + ('#{settings.claim_address_page.enabled}' == 'true' && json[i]['claim_name'] != null && json[i]['claim_name'] != '' ? ' <span class="small fw-normal">(' + json[i]['claim_name'] + ')</span>' : '') + "</a>";
+              var safeAddr = $('<div>').text(json[i]['addr'] || '').html();
+              var safeClaimName = (json[i]['claim_name'] != null && json[i]['claim_name'] != '') ? $('<div>').text(json[i]['claim_name']).html() : '';
+              json[i]['addr'] = "<a href='/address/" + encodeURIComponent(json[i]['addr']) + "'>" + safeAddr + ('#{settings.claim_address_page.enabled}' == 'true' && safeClaimName != '' ? ' <span class="small fw-normal">(' + safeClaimName + ')</span>' : '') + "</a>";
 
               if (labels[addr] != null && labels[addr].enabled == true) {
                 if (labels[addr].type)

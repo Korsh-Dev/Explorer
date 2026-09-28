@@ -129,7 +129,7 @@ function restore_backup(mongoose, backupPath, extractedPath, gZip) {
   console.log(`${settings.localization.restoring_backup}.. ${settings.localization.please_wait}..`);
 
   // restore mongo database from backup
-  const restoreProcess = exec(`mongorestore --host="${settings.dbsettings.address}" --port="${settings.dbsettings.port}" --username="${settings.dbsettings.user}" --password="${settings.dbsettings.password}" --authenticationDatabase="${settings.dbsettings.database}" ${(gZip ? `--gzip --archive="${backupPath}"` : `"${extractedPath}"`)}${singleCollection == null || singleCollection == '' ? '' : ` --drop --db explorerdb --collection ${singleCollection}`}`);
+  const restoreProcess = exec(`mongorestore --host="${settings.dbsettings.address}" --port="${settings.dbsettings.port}" --username="${settings.dbsettings.user}" --password="${settings.dbsettings.password}" --authenticationDatabase="${settings.dbsettings.database}" ${(gZip ? `--gzip --archive="${backupPath}"` : `"${extractedPath}"`)}${singleCollection == null || singleCollection == '' ? '' : ` --drop --db ${settings.dbsettings.database} --collection ${singleCollection}`}`);
 
   restoreProcess.stdout.on('data', (data) => {
     console.log(data);
