@@ -1,0 +1,581 @@
+====================================================================================================
+                        INFORME DE AUDITORÍA DE CÓDIGO, BUGS Y SEGURIDAD
+                               REPOSITORIO: Korsh-Dev/Explorer
+====================================================================================================
+Fecha de Auditoría: 28 de Septiembre de 2026
+Objetivo: Auditoría estática, de seguridad, concurrencia, lógica y dependencias del explorador
+Ruta del Proyecto: c:\Users\lewis\Desktop\explorer
+
+====================================================================================================
+1. RESUMEN EJECUTIVO
+====================================================================================================
+El proyecto "Explorer" es una bifurcación moderna de Iquidus Explorer escrita en Node.js, Express,
+MongoDB (Mongoose) y Pug. Permite indexar cadenas de bloques basadas en Bitcoin Core y consultar
+bloques, transacciones, balances, listas ricas (richlist), mercados y nodos en tiempo real.
+
+Durante la auditoría exhaustiva del código fuente se han detectado:
+- 7 Vulnerabilidades Críticas y de Alta Severidad (Bypass de seguridad, XSS Reflejado y Almacenado,
+  ReDoS/Inyección de consultas, filtración de credenciales y uso inseguro de eval).
+- 8 Errores de Concurrencia Graves causados por el uso no declarado de variables globales (como "i",
+  "exMarket" y "split"), que en entornos asíncronos concurrentes provocan corrupción de datos,
+  bucles infinitos y colisiones entre peticiones.
+- 5 Errores de Lógica y Bloqueo de Ejecución (Precedencia errónea de operadores en JavaScript, bucles
+  infinitos en el sincronizador por contadores no incrementados, deadlocks en colas async y
+  cálculo erróneo de Content-Length en RPC para caracteres UTF-8 multibyte).
+- 4 Puntos de Fallo y Caídas No Controladas (Excepciones no capturadas al recibir respuestas RPC nulas,
+  búsquedas malformadas, colas vacías en rate limiting y divisiones por cero con suministro en 0).
+- 19 Vulnerabilidades en el árbol de dependencias de npm (5 Críticas, 7 Altas, 7 Moderadas).
+
+====================================================================================================
+2. MATRIZ DE RESUMEN DE HALLAZGOS
+====================================================================================================
+ID      | Severidad | Archivo / Componente               | Tipo de Problema
+--------+-----------+------------------------------------+------------------------------------------
+SEC-01  | CRÍTICA   | lib/nodeapi.js:105-106             | Bypass de Autenticación RPC vía Host Header
+SEC-02  | ALTA      | views/claim_address.pug:69-71      | Cross-Site Scripting (XSS) Reflejado
+SEC-03  | ALTA      | views/masternodes.pug:107          | Cross-Site Scripting (XSS) Almacenado
+SEC-04  | ALTA      | app.js:612, 665                    | Bypass de Control de Acceso por Headers Falsificables
+SEC-05  | ALTA      | lib/database.js:34                 | ReDoS (Denegación de Servicio) e Inyección Regex
+SEC-06  | ALTA      | app.js & lib/settings.js           | Uso Inseguro de eval() para Objetos y Ajustes
+SEC-07  | MEDIA     | scripts/benchmark.js:92, 232       | Exposición de Contraseña de Base de Datos en Logs
+SEC-08  | MEDIA     | scripts/restore_backup.js:132      | Base de Datos Hardcodeada ("explorerdb")
+CON-01  | ALTA      | app.js, lib/block_sync, lib/nodeapi| Variables Globales No Declaradas (global.i)
+LOG-01  | ALTA      | lib/block_sync.js:646-655          | Bucle Infinito en Sincronización (retryAttempts)
+LOG-02  | MEDIA     | routes/index.js:278 & app.js:507   | Error de Precedencia de Operadores (!rtx > 0)
+LOG-03  | ALTA      | lib/block_sync.js:397-400          | Deadlock en Cola async.queue (slotIndex === -1)
+LOG-04  | ALTA      | lib/jsonrpc.js:54                  | Content-Length Erróneo en UTF-8 Multibyte
+LOG-05  | MEDIA     | lib/jsonrpc.js:100, 178            | Doble Disparo de Callback en Errores de Red
+LOG-06  | ALTA      | lib/jsonrpc.js:166                 | Caída del Proceso por Desreferencia Nula en RPC
+LOG-07  | MEDIA     | lib/explorer.js:1091               | Falta de encodeURIComponent en Verificación RPC
+LOG-08  | MEDIA     | routes/index.js:917                | Caída del Proceso (500) en POST /search sin Body
+LOG-09  | MEDIA     | lib/ratelimit.js:29, 42            | Excepción TypeError (fn is not a function)
+LOG-10  | BAJA      | lib/database.js:1250               | Etapa de $sort Inútil en Pipeline de Agregación
+LOG-11  | MEDIA     | lib/database.js:1419, 1443         | Posible División por Cero si Supply es 0
+DEP-01  | MEDIA     | scripts/stop_explorer.js:20        | Error de Ejecución en taskkill Windows (\r)
+DEP-02  | BAJA      | scripts/update_explorer.js:31      | Detección de Rama Git Rota (asume master local)
+DEP-03  | BAJA      | bin/cluster:3, lib/block_sync:71   | APIs Deprecadas (cluster.isMaster, String.substr)
+NPM-01  | CRÍTICA   | package.json / npm audit           | 19 Vulnerabilidades en Dependencias
+
+====================================================================================================
+3. DETALLE EXHAUSTIVO DE VULNERABILIDADES Y ERRORES
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+[SEC-01] BYPASS DE AUTENTICACIÓN Y CONTROL DE ACCESO RPC MEDIANTE CABECERA 'HOST'
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/nodeapi.js (Líneas 105 - 106)
+- Severidad: CRÍTICA (CVSS: 9.1)
+- Código afectado:
+    if ((!settings.api_page.enabled || method_enabled == null || !method_enabled) && req.headers.host.indexOf('127.0.0.1') == -1)
+      res.end(settings.localization.method_disabled);
+- Descripción del Bug:
+  El servidor valida si una solicitud es "interna" comprobando si la cabecera HTTP `Host` contiene
+  la cadena `127.0.0.1`. La cabecera `Host` es completamente controlada por el cliente y un atacante
+  externo desde Internet puede enviar una petición con:
+    GET /api/<metodo_rpc> HTTP/1.1
+    Host: 127.0.0.1
+  Al contener `127.0.0.1`, la condición evalúa como una petición local interna, permitiendo que
+  el atacante invoque métodos RPC no autorizados o métodos que el administrador había deshabilitado.
+- Solución propuesta:
+  Nunca confiar en `req.headers.host` para autenticación o autorización. Para verificar si una conexión
+  proviene de la máquina local se debe inspeccionar la dirección IP remota real (`req.socket.remoteAddress`
+  o `req.ip` configurando adecuadamente `trust proxy`):
+    const remoteIp = req.socket.remoteAddress;
+    const isLocal = remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1';
+
+----------------------------------------------------------------------------------------------------
+[SEC-02] CROSS-SITE SCRIPTING (XSS) REFLEJADO EN PÁGINA DE RECLAMO DE DIRECCIÓN
+----------------------------------------------------------------------------------------------------
+- Ubicación:
+  - routes/index.js (Líneas 403-416, 884)
+  - views/claim_address.pug (Líneas 69 - 71)
+- Severidad: ALTA (CVSS: 7.5)
+- Código afectado:
+    if ('!{hash}' != 'null' && '!{hash}' != '') {
+      $('#claimAlert').html(generateAlertHTML('info', true, ('!{claim_name}' == '' ? 'Unc' : 'C') + 'laimed address', '<strong>!{hash}</strong> is currently ' + ('!{claim_name}' == '' ? 'un' : '') + 'claimed' + ('!{claim_name}' == '' ? '' : ' as <strong>' + displayAsText('!{claim_name}') + '.</strong>')));
+- Descripción del Bug:
+  En Pug, la interpolación `!{}` inyecta el valor en bruto sin escapar caracteres HTML o JavaScript.
+  La variable `hash` proviene directamente del parámetro de la URL `req.params.hash` en `/claim/:hash`.
+  Un atacante puede generar un enlace malicioso como:
+    https://explorador.com/claim/';alert(document.cookie);//
+  Al abrir la URL, el código malicioso se inserta directamente en el bloque `<script>` de la página,
+  ejecutando JavaScript arbitrario en el navegador de la víctima.
+- Solución propuesta:
+  Utilizar serialización JSON segura (`#{JSON.stringify(hash)}` o pasarlo mediante atributos data en
+  elementos HTML) y no inyectar cadenas sin escapar en scripts:
+    const safeHash = !{JSON.stringify(hash)};
+    const safeClaimName = !{JSON.stringify(claim_name)};
+
+----------------------------------------------------------------------------------------------------
+[SEC-03] CROSS-SITE SCRIPTING (XSS) ALMACENADO EN LISTADO DE MASTERNODOS
+----------------------------------------------------------------------------------------------------
+- Ubicación: views/masternodes.pug (Línea 107)
+- Severidad: ALTA (CVSS: 8.2)
+- Código afectado:
+    json[i]['addr'] = "<a href='/address/" + json[i]['addr'] + "'>" + json[i]['addr'] + ('#{settings.claim_address_page.enabled}' == 'true' && json[i]['claim_name'] != null && json[i]['claim_name'] != '' ? ' <span class="small fw-normal">(' + json[i]['claim_name'] + ')</span>' : '') + "</a>";
+- Descripción del Bug:
+  Cualquier usuario que sea propietario de una dirección de masternode puede asociarle un nombre
+  reclamado a través de `/claim` (firmando un mensaje con su clave privada). En `views/masternodes.pug`,
+  `json[i]['claim_name']` se concatena directamente en la cadena de HTML devuelta a DataTables. Si el
+  nombre contiene `<img src=x onerror=...>` o código HTML/JS, se almacena en base de datos y se ejecuta
+  en el navegador de TODOS los usuarios que visiten la sección `/masternodes`.
+- Solución propuesta:
+  Sanitizar y escapar entidades HTML en `claim_name` antes de concatenarlo en la tabla o utilizar
+  `displayAsText()` / `jQuery.text()` para renderizar texto plano.
+
+----------------------------------------------------------------------------------------------------
+[SEC-04] BYPASS DE RESTRICCIONES DE API MEDIANTE CABECERAS AJAX FALSIFICABLES
+----------------------------------------------------------------------------------------------------
+- Ubicación: app.js (Líneas 612 y 665)
+- Severidad: ALTA (CVSS: 7.1)
+- Código afectado:
+    if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getlasttxs.enabled == true) || (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1))
+- Descripción del Bug:
+  El código intenta distinguir peticiones legítimas del explorador respecto a usuarios externos
+  verificando cabeceras como `X-Requested-With: XMLHttpRequest` y `Referer`. Como el mismo desarrollador
+  anotó con un `TODO`: cualquier cliente HTTP (Postman, curl, scripts en Python) puede añadir fácilmente
+  estas cabeceras y evadir la directiva de API deshabilitada (`method_disabled`).
+- Solución propuesta:
+  Implementar tokens CSRF o firmas HMAC de sesión para solicitudes internas, o separar las rutas
+  internas de datos mediante endpoints protegidos que no dependan de cabeceras estáticas falsificables.
+
+----------------------------------------------------------------------------------------------------
+[SEC-05] DENEGACIÓN DE SERVICIO (ReDoS) E INYECCIÓN REGEX EN BÚSQUEDA DE DIRECCIONES
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/database.js (Línea 34)
+- Severidad: ALTA (CVSS: 7.5)
+- Código afectado:
+    Address.findOne({a_id: {$regex: '^' + hash + '$', $options: 'i'}}).then((address) => { ... })
+- Descripción del Bug:
+  La variable `hash` proviene directamente de la entrada del usuario en el buscador (`/search` o
+  `/ext/getaddress/:hash`). No se escapa ningún carácter especial de expresiones regulares. Si un usuario
+  envía patrones con retroceso catastrófico (catastrophic backtracking) como `(a+)+$` o secuencias
+  repetitivas, el motor PCRE de MongoDB entra en bucle exponencial, consumiendo el 100% de la CPU
+  del servidor de base de datos y dejando el explorador inoperativo para todos los usuarios.
+- Solución propuesta:
+  Escapar todos los caracteres especiales de regex antes de construir la consulta, o mejor aún,
+  validar que `hash` contenga únicamente caracteres alfanuméricos válidos para direcciones criptográficas:
+    function escapeRegex(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    const safePattern = '^' + escapeRegex(hash) + '$';
+
+----------------------------------------------------------------------------------------------------
+[SEC-06] USO INSEGURO DE EVAL() PARA CREAR OBJETOS Y CONFIGURACIONES
+----------------------------------------------------------------------------------------------------
+- Ubicación:
+  - app.js (Líneas 579, 597, 602, 1046)
+  - lib/settings.js (Líneas 2217, 2221, 2245, 2269, 2291)
+- Severidad: ALTA (CVSS: 7.2)
+- Código afectado:
+    eval('var p_ext = { "last_price_' + currency.toLowerCase() + '": new Decimal(...) ... }');
+    eval('market_data.push({id: "' + key + '", name: "' + (exMarket.market_name ...) + '"...});');
+    eval('exports' + fix_object_path(path) + ' = ' + JSON.stringify(setting_value));
+- Descripción del Bug:
+  El código utiliza `eval()` para construir propiedades dinámicas de objetos y almacenar configuraciones.
+  Esto es una práctica peligrosa y obsoleta. Si cualquiera de estas variables (`currency`, `key`,
+  `market_name` o `path`) contiene comillas dobles, saltos de línea o caracteres no sanitizados, se
+  produce una ruptura de sintaxis o la ejecución de código arbitrario en el contexto del proceso Node.js.
+- Solución propuesta:
+  Reemplazar `eval()` por la sintaxis estándar de ECMAScript 6 de propiedades computadas y acceso
+  dinámico a objetos:
+    const p_ext = {
+      [`last_price_${currency.toLowerCase()}`]: new Decimal(stats.last_price.toString()).toFixed(),
+      last_usd_price: new Decimal(stats.last_usd_price.toString()).toFixed()
+    };
+    market_data.push({ id: key, name: exMarket.market_name || '', ... });
+
+----------------------------------------------------------------------------------------------------
+[SEC-07] FILTRACIÓN DE CREDENCIALES DE BASE DE DATOS EN FORMATO TEXTO PLANO EN LOGS
+----------------------------------------------------------------------------------------------------
+- Ubicación: scripts/benchmark.js (Líneas 92 y 232)
+- Severidad: MEDIA (CVSS: 5.5)
+- Código afectado:
+    console.log('Error: Unable to connect to database: %s', dbString);
+- Descripción del Bug:
+  `dbString` se construye concatenando usuario, contraseña y host en formato URI (`mongodb://user:pass@host...`).
+  Al fallar la conexión, el script imprime la cadena completa en consola, exponiendo la contraseña
+  de administración de MongoDB en los registros del sistema.
+- Solución propuesta:
+  Ocultar la contraseña al imprimir la cadena de conexión en consola:
+    const sanitizedDbString = dbString.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:***@');
+    console.log('Error: Unable to connect to database: %s', sanitizedDbString);
+
+----------------------------------------------------------------------------------------------------
+[SEC-08] BASE DE DATOS HARDCODEADA ("explorerdb") EN RESTAURACIÓN DE COPIAS DE SEGURIDAD
+----------------------------------------------------------------------------------------------------
+- Ubicación: scripts/restore_backup.js (Línea 132)
+- Severidad: MEDIA
+- Código afectado:
+    const restoreProcess = exec(`mongorestore ... --drop --db explorerdb --collection ${singleCollection}`);
+- Descripción del Bug:
+  Cuando se solicita la restauración de una colección individual, el comando tiene fijado el nombre
+  de la base de datos como `explorerdb` en lugar de utilizar `settings.dbsettings.database`. Si el usuario
+  configuró su explorador con otro nombre de base de datos, la restauración no afectará a la base de
+  datos activa y podría borrar datos en otra base de datos del servidor Mongo.
+- Solución propuesta:
+  Reemplazar `explorerdb` por `${settings.dbsettings.database}`.
+
+----------------------------------------------------------------------------------------------------
+[CON-01] CONDICIONES DE CARRERA: VARIABLES GLOBALES ACCIDENTALES (global.i, split, exMarket)
+----------------------------------------------------------------------------------------------------
+- Ubicación:
+  - app.js: Línea 446 (`for (i = 0; i < txs.length; i++)`)
+  - app.js: Línea 688 (`for (i = 0; i < txs.length; i++)`)
+  - app.js: Línea 899 (`for (i = 0; i < masternodes.length; i++)`)
+  - app.js: Línea 918 (`for (i = 0; i < rewards.length; i++)`)
+  - app.js: Línea 967 (`for (i = 0; i < orphans.length; i++)`)
+  - lib/block_sync.js: Línea 383 (`for (i = start; i < (end + 1); i++)`)
+  - lib/nodeapi.js: Líneas 137, 305, 310, 320, 329 (`for (i = 0; ... )`)
+  - lib/settings.js: Línea 2237 (`for (i = 0; i < split.length - 1; i++)`)
+  - lib/explorer.js: Línea 46 (`for (i = 0; i < split.length; i++)`)
+  - lib/database.js: Línea 90 (`exMarket = require(...)`)
+  - scripts/stop_explorer.js: Línea 20 (`split = stdout.split('\n')`)
+- Severidad: ALTA (Impacto severo en estabilidad y concurrencia)
+- Descripción del Bug:
+  Al no utilizar `'use strict'` ni anteponer `let`, `const` o `var`, Node.js asigna la variable
+  directamente al objeto global `global.i`. En un servidor Express asíncrono donde múltiples peticiones
+  se atienden en el mismo proceso, si una petición ejecuta un bucle y cede el control en un `await` o
+  callback, otra petición modifica `global.i`. Esto genera:
+  1) Iteraciones incompletas o saltadas en listas de transacciones y masternodos.
+  2) Bucles infinitos si otra petición reinicia el valor de `i`.
+  3) Mezcla de datos y respuestas HTTP corruptas.
+- Solución propuesta:
+  Declarar explícitamente `let i = 0` o `const i` en cada bucle e incluir `'use strict';` al inicio
+  de cada módulo para evitar la creación inadvertida de variables globales.
+
+----------------------------------------------------------------------------------------------------
+[LOG-01] BUCLE INFINITO EN SINCRONIZACIÓN DE BLOQUES (retryAttempts NUNCA SE INCREMENTA)
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/block_sync.js (Líneas 646 - 655)
+- Severidad: ALTA
+- Código afectado:
+    const retryLimit = (10000 / timeout);
+    let retryAttempts = 0;
+
+    const handle = setInterval(() => {
+      if (tx_counter === 0 || retryAttempts >= retryLimit) {
+        clearInterval(handle);
+        ...
+- Descripción del Bug:
+  En el bucle de espera para finalizar el procesamiento de transacciones de un bloque, se define
+  un límite de reintentos `retryLimit` y el contador `retryAttempts = 0`. Sin embargo, dentro del
+  intervalo NUNCA se ejecuta `retryAttempts++` (a diferencia de la línea 762 donde sí fue implementado).
+  Si por algún error o bloqueo `tx_counter` no llega exactamente a 0, la condición `retryAttempts >= retryLimit`
+  jamás se cumplirá, creando un bucle infinito que congela por completo el sincronizador de bloques.
+- Solución propuesta:
+  Agregar `retryAttempts++;` en la rama `else` del callback de `setInterval`:
+    if (tx_counter === 0 || retryAttempts >= retryLimit) {
+      clearInterval(handle);
+      ...
+    } else {
+      retryAttempts++;
+    }
+
+----------------------------------------------------------------------------------------------------
+[LOG-02] ERROR DE PRECEDENCIA DE OPERADORES: (!rtx.confirmations > 0)
+----------------------------------------------------------------------------------------------------
+- Ubicación:
+  - routes/index.js (Línea 278)
+  - app.js (Línea 507)
+- Severidad: MEDIA
+- Código afectado:
+    if (!rtx.confirmations > 0) {
+- Descripción del Bug:
+  En JavaScript, el operador de negación lógica `!` tiene mayor precedencia que el operador relacional `>`.
+  Por tanto, la expresión evalúa como: `(!rtx.confirmations) > 0`.
+  - Si `rtx.confirmations` es 5: `!5` es `false`. `false > 0` evalúa como `0 > 0` que es `false`.
+  - Si `rtx.confirmations` es -1 (bloque huérfano): `!-1` es `false`. `false > 0` evalúa como `false`.
+  En este último caso (bloques huérfanos con confirmaciones negativas), la lógica falla y no detecta
+  que la transacción no está confirmada.
+- Solución propuesta:
+  Escribir la comparación con paréntesis o verificar directamente:
+    if (!(rtx.confirmations > 0)) {
+  o bien:
+    if (rtx.confirmations == null || rtx.confirmations <= 0) {
+
+----------------------------------------------------------------------------------------------------
+[LOG-03] BLOQUEO PERMANENTE (DEADLOCK) EN LA COLA ASYNC.QUEUE DE LIB/BLOCK_SYNC.JS
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/block_sync.js (Líneas 397 - 400)
+- Severidad: ALTA
+- Código afectado:
+    const block_queue = async.queue((task, cb) => {
+      const { block_height, onComplete } = task;
+      const slotIndex = block_numbers.findIndex((v) => v === 0);
+
+      if (slotIndex === -1) {
+        setTimeout(() => block_queue.push(task, cb), 1);
+        return;
+      }
+- Descripción del Bug:
+  `async.queue` espera que la función trabajadora invoque `cb()` para considerar que la tarea ha
+  finalizado y liberar la capacidad concurrente. Cuando `slotIndex === -1` (no hay ranuras libres),
+  la función retorna inmediatamente sin llamar a `cb()`. Para `async.queue`, esa ranura queda ocupada
+  eternamente, reduciendo la concurrencia disponible hasta provocar un bloqueo total (deadlock) de
+  la sincronización.
+- Solución propuesta:
+  Invocar `cb()` al reprogramar la tarea o manejar la espera mediante un mecanismo de semáforo o promesa:
+    if (slotIndex === -1) {
+      cb();
+      setTimeout(() => block_queue.push(task), 1);
+      return;
+    }
+
+----------------------------------------------------------------------------------------------------
+[LOG-04] CÁLCULO ERRÓNEO DE CONTENT-LENGTH EN CLIENTE JSON-RPC CON CARACTERES MULTIBYTE
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/jsonrpc.js (Línea 54)
+- Severidad: ALTA
+- Código afectado:
+    'Content-Length': requestJSON.length
+- Descripción del Bug:
+  En JavaScript, `string.length` cuenta unidades de código UTF-16, NO la longitud en bytes. Si el cuerpo
+  del comando RPC contiene caracteres Unicode multibyte (acentos, símbolos en mensajes OP_RETURN, firmas, etc.),
+  `requestJSON.length` será menor que la cantidad real de bytes enviados. El demonio de la blockchain
+  recibirá la cabecera `Content-Length` truncada y cortará la petición antes de la llave de cierre `}`,
+  generando un error 400 o un fallo de análisis JSON en el nodo.
+- Solución propuesta:
+  Utilizar la longitud en bytes mediante `Buffer.byteLength`:
+    'Content-Length': Buffer.byteLength(requestJSON, 'utf8')
+
+----------------------------------------------------------------------------------------------------
+[LOG-05] DOBLE DISPARO DE CALLBACK ERRBACK EN CLIENTE JSON-RPC ANTE ERRORES DE RED
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/jsonrpc.js (Líneas 100 y 178)
+- Severidad: MEDIA
+- Código afectado:
+    request.on('error', function(err) {
+      if (cbCalled) return;
+      cbCalled = true;
+      clearTimeout(reqTimeout);
+      errback(err);
+    });
+    ...
+    request.on('error', errback);
+- Descripción del Bug:
+  El evento `'error'` del objeto `request` tiene registrados DOS listeners: el listener personalizado
+  en la línea 100 y la llamada directa `request.on('error', errback)` en la línea 178. Cuando ocurre
+  un error a nivel de socket o conexión rechazada, `errback` es llamado dos veces, lo que produce
+  errores de cabeceras ya enviadas (`ERR_HTTP_HEADERS_SENT`) o excepciones no capturadas.
+- Solución propuesta:
+  Eliminar la línea 178 (`request.on('error', errback);`) ya que el listener de la línea 100 ya gestiona
+  correctamente el timeout, la bandera `cbCalled` y la invocación a `errback`.
+
+----------------------------------------------------------------------------------------------------
+[LOG-06] CAÍDA DEL PROCESO POR DESREFERENCIA NULA EN RESPUESTA RPC MALFORMADA
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/jsonrpc.js (Líneas 164 - 173)
+- Severidad: ALTA
+- Código afectado:
+    } else {
+      if (errback) {
+        err = new Error(decodedResponse.error.message || '');
+        if (decodedResponse.error.code)
+          err.code = decodedResponse.error.code;
+        errback(err);
+      }
+    }
+- Descripción del Bug:
+  Si la respuesta RPC no contiene `result` y tampoco contiene `error` (o `error` es `null`), el flujo
+  entra en la rama `else`. En esta rama se intenta acceder a `decodedResponse.error.message`. Al ser
+  `decodedResponse.error` nulo o indefinido, Node.js lanza `TypeError: Cannot read properties of undefined (reading 'message')`.
+  Al ocurrir dentro del evento `response.on('end')` fuera de un bloque `try/catch`, esto resulta en una
+  excepción no capturada que tumba inmediatamente el proceso del servidor.
+- Solución propuesta:
+  Verificar la existencia de `decodedResponse.error` antes de desreferenciar sus propiedades:
+    const errMsg = (decodedResponse.error && decodedResponse.error.message) ? decodedResponse.error.message : 'Respuesta RPC inválida o vacía';
+    err = new Error(errMsg);
+    if (decodedResponse.error && decodedResponse.error.code)
+      err.code = decodedResponse.error.code;
+
+----------------------------------------------------------------------------------------------------
+[LOG-07] FALTA DE CODIFICACIÓN URL (encodeURIComponent) EN LLAMADA VERIFYMESSAGE
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/explorer.js (Línea 1091)
+- Severidad: MEDIA
+- Código afectado:
+    const uri = base_url + 'verifymessage?address=' + address + '&signature=' + signature + '&message=' + message;
+- Descripción del Bug:
+  A diferencia de otras funciones en `explorer.js` (como las líneas 869 y 896), en la llamada a
+  `verifymessage` no se codifican los parámetros. Si el mensaje que el usuario firma contiene espacios,
+  símbolos como `&`, `+`, `#` o `=`, la URL se rompe y los parámetros llegan incompletos al nodo,
+  haciendo que la verificación de firma criptográfica falle siempre para mensajes con caracteres especiales.
+- Solución propuesta:
+  Codificar adecuadamente todos los componentes del querystring:
+    const uri = `${base_url}verifymessage?address=${encodeURIComponent(address)}&signature=${encodeURIComponent(signature)}&message=${encodeURIComponent(message)}`;
+
+----------------------------------------------------------------------------------------------------
+[LOG-08] CAÍDA CON ERROR 500 EN PETICIÓN POST /search SIN BODY O CAMPO INVÁLIDO
+----------------------------------------------------------------------------------------------------
+- Ubicación: routes/index.js (Línea 917)
+- Severidad: MEDIA
+- Código afectado:
+    var query = req.body.search.trim();
+- Descripción del Bug:
+  Si un cliente envía una petición POST a `/search` con un cuerpo vacío, nulo o sin el campo `search`
+  (o si `search` es un objeto/número), `req.body.search.trim()` lanza:
+  `TypeError: Cannot read properties of undefined (reading 'trim')`.
+  Express genera un error 500 no controlado.
+- Solución propuesta:
+  Validar y asegurar que `req.body` y `req.body.search` existan y sean de tipo cadena:
+    if (!req.body || typeof req.body.search !== 'string' || req.body.search.trim() === '') {
+      return route_get_txlist(res, 'Término de búsqueda no válido');
+    }
+    const query = req.body.search.trim();
+
+----------------------------------------------------------------------------------------------------
+[LOG-09] EXCEPCIÓN TYPEERROR (fn is not a function) EN GESTOR DE RATE LIMITING
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/ratelimit.js (Líneas 29 y 42)
+- Severidad: MEDIA
+- Código afectado:
+    if (this._queue.length === 0) {
+      this._numOps++;
+      fn();
+    ...
+    setTimeout(function() {
+      that.schedule();
+    }, 1 / this._maxRate);
+- Descripción del Bug:
+  Cuando se reprograma la ejecución mediante `setTimeout`, se invoca `that.schedule()` sin argumentos
+  (`fn` es `undefined`). Si en el momento de ejecutarse `this._queue` se encuentra vacía, el código entra
+  en `this._numOps++; fn();`, ejecutando `undefined()`, lo que arroja un `TypeError: fn is not a function`.
+- Solución propuesta:
+  Comprobar siempre que `fn` sea una función antes de invocarla directamente:
+    if (this._queue.length === 0) {
+      if (typeof fn === 'function') {
+        this._numOps++;
+        fn();
+      }
+    }
+
+----------------------------------------------------------------------------------------------------
+[LOG-10] ETAPA DE $sort INÚTIL TRAS $project EN get_address_txs_ajax
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/database.js (Línea 1250)
+- Severidad: BAJA (Rendimiento)
+- Código afectado:
+    AddressTx.aggregate([
+      { $match: { a_id: hash } },
+      { $sort: { blockindex: -1 } },
+      { $skip: Number(start) },
+      { $group: { _id: '', balance: { $sum: '$amount' } } },
+      { $project: { _id: 0, balance: '$balance' } },
+      { $sort: { blockindex: -1 } }
+    ])
+- Descripción del Bug:
+  En la agregación de MongoDB, la etapa `$project` de la línea 1245 descarta todos los campos excepto
+  `balance`. La etapa posterior `{ $sort: { blockindex: -1 } }` intenta ordenar por un campo que ya no
+  existe en el documento. Esto representa una operación inútil en el motor de base de datos.
+- Solución propuesta:
+  Eliminar la etapa de ordenación redundante posterior a `$project`.
+
+----------------------------------------------------------------------------------------------------
+[LOG-11] POSIBLE DIVISIÓN POR CERO EN DISTRIBUCIÓN DE RIQUEZA (stats.supply == 0)
+----------------------------------------------------------------------------------------------------
+- Ubicación: lib/database.js (Líneas 1419 y 1443)
+- Severidad: MEDIA
+- Código afectado:
+    const percentage = new Decimal(richlist.balance[i].balance.toString()).div(100000000).div(stats.supply.toString()).mul(100);
+- Descripción del Bug:
+  Durante la sincronización inicial de una blockchain o en monedas con genesis con supply 0,
+  `stats.supply` puede ser 0 o nulo. La librería `decimal.js` arroja una excepción fatal
+  `DecimalError: Division by zero` que detiene la ejecución del endpoint.
+- Solución propuesta:
+  Verificar que `stats.supply` sea mayor a cero antes de dividir:
+    const supply = new Decimal((stats && stats.supply) ? stats.supply.toString() : '0');
+    const percentage = supply.gt(0)
+      ? new Decimal(richlist.balance[i].balance.toString()).div(100000000).div(supply).mul(100)
+      : new Decimal('0');
+
+----------------------------------------------------------------------------------------------------
+[DEP-01] FALLO DE PARSEO EN SCRIPT DE DETENCIÓN (stop_explorer.js) EN WINDOWS
+----------------------------------------------------------------------------------------------------
+- Ubicación: scripts/stop_explorer.js (Línea 20)
+- Severidad: MEDIA
+- Código afectado:
+    split = stdout.split('\n');
+    return cb(`taskkill /f /pid ${split[0]}`);
+- Descripción del Bug:
+  En Windows, la salida del comando CMD termina con `\r\n`. Al hacer `stdout.split('\n')`, el elemento
+  `split[0]` conserva el retorno de carro `\r`. Al ejecutar `taskkill /f /pid 1234\r`, el comando falla
+  con error de sintaxis en el PID. Adicionalmente, la variable `split` no está declarada con `let`/`const`.
+- Solución propuesta:
+  Limpiar espacios y caracteres de salto de línea:
+    const pid = split[0].trim();
+    return cb(`taskkill /f /pid ${pid}`);
+
+----------------------------------------------------------------------------------------------------
+[DEP-02] DETECCIÓN DE RAMA GIT ROTA EN ACTUALIZADOR (update_explorer.js)
+----------------------------------------------------------------------------------------------------
+- Ubicación: scripts/update_explorer.js (Línea 31)
+- Severidad: BAJA
+- Código afectado:
+    if (fs.existsSync('./.git') && fs.existsSync('./.git/refs/heads/master'))
+- Descripción del Bug:
+  El script asume que la rama local siempre es `master` y que el archivo `.git/refs/heads/master`
+  existe en disco. Si el repositorio utiliza la rama por defecto moderna `main`, o si git ha empaquetado
+  las referencias en `.git/packed-refs`, la condición falla falsamente e indica que el código no proviene
+  de git, impidiendo actualizaciones automáticas.
+- Solución propuesta:
+  Utilizar `git rev-parse HEAD` para comprobar la existencia y versión actual del repositorio.
+
+----------------------------------------------------------------------------------------------------
+[DEP-03] APIS Y MÉTODOS DEPRECADOS DE NODE.JS
+----------------------------------------------------------------------------------------------------
+- Ubicación:
+  - bin/cluster (Línea 3): `cluster.isMaster` está deprecado en Node.js v16+ en favor de `cluster.isPrimary`.
+  - lib/block_sync.js (Línea 71): `String.prototype.substr()` es una API legada deprecada (reemplazar por `.substring()`).
+  - lib/jsonrpc.js (Líneas 78 y 92): `request.abort()` está deprecado en favor de `request.destroy()`.
+- Severidad: BAJA
+- Solución propuesta:
+  Actualizar los métodos a sus equivalentes modernos estándar de Node.js.
+
+----------------------------------------------------------------------------------------------------
+[NPM-01] VULNERABILIDADES REPORTADAS EN DEPENDENCIAS (npm audit)
+----------------------------------------------------------------------------------------------------
+- Ubicación: package.json / package-lock.json
+- Severidad: CRÍTICA (5 Críticas, 7 Altas, 7 Moderadas)
+- Paquetes afectados:
+  - `minimist` (<=0.2.3): Prototype Pollution Crítico (GHSA-xvch-5gv4-984h).
+  - `nconf` (<=0.11.3): Prototype Pollution Crítico (GHSA-6xwr-q98w-rvg7).
+  - `optimist` (>=0.6.0): Dependencia obsoleta vulnerable arrastrada por `forever`.
+  - `micromatch` (<=4.0.7): ReDoS de Alta Severidad (GHSA-952p-6rrq-rcjv).
+  - `postman-request` / `qs` / `uuid`: Vulnerabilidades moderadas de DoS y buffer bounds.
+- Solución propuesta:
+  1) Reemplazar o desinstalar la herramienta `forever` (proyecto abandonado hace años) en favor de `pm2`
+     directamente o contenedores Docker / systemd.
+  2) Ejecutar `npm audit fix` para actualizar librerías transitivas no conflictivas.
+
+====================================================================================================
+4. PLAN DE ACCIÓN RECOMENDADO PARA LA CORRECCIÓN
+====================================================================================================
+Para asegurar la estabilidad, seguridad y rendimiento óptimo del explorador, se recomienda seguir
+el siguiente orden de prioridades:
+
+FASE 1: PARCHES DE SEGURIDAD URGENTES (Día 1)
+  1. Corregir la validación de peticiones locales en [SEC-01] (`lib/nodeapi.js`) usando la IP real del socket.
+  2. Sanear e implementar escaping contra XSS en [SEC-02] (`views/claim_address.pug`) y [SEC-03] (`views/masternodes.pug`).
+  3. Sanitizar las expresiones regulares en [SEC-05] (`lib/database.js`) para evitar ataques ReDoS.
+  4. Eliminar el uso de `eval()` en [SEC-06] (`app.js` y `lib/settings.js`).
+  5. Ocultar credenciales de MongoDB en los logs de [SEC-07] (`scripts/benchmark.js`).
+
+FASE 2: CORRECCIÓN DE CONCURRENCIA Y BUGS DE SINCRONIZACIÓN (Día 2)
+  1. Corregir todas las variables globales no declaradas [CON-01] agregando `let` en los bucles `for (i = 0...)`.
+  2. Implementar `retryAttempts++` en el intervalo de [LOG-01] (`lib/block_sync.js`) para evitar bucles infinitos.
+  3. Corregir la precedencia de operadores en [LOG-02] (`routes/index.js` y `app.js`).
+  4. Resolver el deadlock en la cola de sincronización en [LOG-03] (`lib/block_sync.js`).
+  5. Corregir el cálculo de `Content-Length` con `Buffer.byteLength` en [LOG-04] (`lib/jsonrpc.js`).
+  6. Eliminar el doble listener de error y proteger contra desreferencias nulas en [LOG-05] y [LOG-06] (`lib/jsonrpc.js`).
+
+FASE 3: ROBUSTEZ Y COMPATIBILIDAD (Día 3)
+  1. Añadir validaciones de entrada en [LOG-07] (`explorer.js`), [LOG-08] (`routes/index.js`), [LOG-09] (`ratelimit.js`) y [LOG-11] (`database.js`).
+  2. Corregir el hardcode de `explorerdb` en [SEC-08] (`scripts/restore_backup.js`).
+  3. Limpiar retornos de carro `\r` en [DEP-01] (`scripts/stop_explorer.js`).
+  4. Actualizar sintaxis obsoleta [DEP-03] (`cluster.isPrimary`, `Buffer.from`, `destroy()`).
+  5. Limpiar dependencias obsoletas (`forever`) y actualizar paquetes mediante `npm audit fix`.
+
+====================================================================================================
+                              FIN DEL INFORME DE AUDITORÍA
+====================================================================================================

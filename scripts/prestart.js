@@ -55,7 +55,8 @@ function check_arguments_passed(cb) {
           var splitResponse = (stdout == null ? '' : stdout.trim()).split('\n').filter(element => element);
 
           // check if the cmd result contains an @ symbol
-          if (splitResponse[1].indexOf('@') == -1) {
+          const hasModule = splitResponse.length > 1 && splitResponse.some(line => line.indexOf('@') > -1);
+          if (!hasModule) {
             console.log(`${settings.localization.installing_module.replace('{1}', 'pm2')}.. ${settings.localization.please_wait}..`);
 
             // install pm2
@@ -74,7 +75,8 @@ function check_arguments_passed(cb) {
           var splitResponse = (stdout == null ? '' : stdout.trim()).split('\n').filter(element => element);
 
           // check if the cmd result contains an @ symbol
-          if (splitResponse[1].indexOf('@') == -1) {
+          const hasModule = splitResponse.length > 1 && splitResponse.some(line => line.indexOf('@') > -1);
+          if (!hasModule) {
             console.log(`${settings.localization.installing_module.replace('{1}', 'forever')}.. ${settings.localization.please_wait}..`);
             
             // install forever
@@ -136,7 +138,7 @@ check_arguments_passed(function(pidName, node_env, reload) {
           }
 
           // setting the NODE_ENV variable is more easily done from here seeing at the syntax changes slightly depending on operating system
-          execSync(`${(process.platform == 'win32' ? 'set' : 'export')} NODE_ENV=${node_env} && pm2 ${startOrReloadPm2} ./bin/instance -i 0 -n explorer -p "./tmp/pm2.pid" --node-args="--stack-size=10000" --update-env`, {stdio : 'inherit'});
+          execSync(`pm2 ${startOrReloadPm2} ./bin/instance -i 0 -n explorer -p "./tmp/pm2.pid" --node-args="--stack-size=10000" --update-env`, { env: Object.assign({}, process.env, { NODE_ENV: node_env }), stdio: 'inherit' });
           break;
         case 'forever':
           const path = require('path');
@@ -146,7 +148,7 @@ check_arguments_passed(function(pidName, node_env, reload) {
           // more info: https://github.com/foreversd/forever/issues/421
           // forever is therefore started from here to be able to more easily resolve the absolute path
           // also, setting the NODE_ENV variable is more easily done from here as well seeing at the syntax changes slightly depending on operating system
-          execSync(`${(process.platform == 'win32' ? 'set' : 'export')} NODE_ENV=${node_env} && forever ${startOrReloadForever} --append --uid "explorer" --pidFile "${path.resolve('./tmp/forever.pid')}" ./bin/cluster`, {stdio : 'inherit'});    
+          execSync(`forever ${startOrReloadForever} --append --uid "explorer" --pidFile "${path.resolve('./tmp/forever.pid')}" ./bin/cluster`, { env: Object.assign({}, process.env, { NODE_ENV: node_env }), stdio: 'inherit' });    
           break;
       }
 

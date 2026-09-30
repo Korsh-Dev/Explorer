@@ -1211,16 +1211,18 @@ if (lib.is_locked([database]) == false) {
       }
     }
 
-    var dbString = 'mongodb://' + encodeURIComponent(settings.dbsettings.user);
-    dbString = dbString + ':' + encodeURIComponent(settings.dbsettings.password);
-    dbString = dbString + '@' + settings.dbsettings.address;
-    dbString = dbString + ':' + settings.dbsettings.port;
-    dbString = dbString + '/' + settings.dbsettings.database;
+    const auth = (settings.dbsettings.user != null && settings.dbsettings.user !== '')
+      ? encodeURIComponent(settings.dbsettings.user) + ':' + encodeURIComponent(settings.dbsettings.password) + '@'
+      : '';
+    var dbString = 'mongodb://' + auth + settings.dbsettings.address + ':' + settings.dbsettings.port + '/' + settings.dbsettings.database;
 
     mongoose.set('strictQuery', true);
     mongoose.set('updatePipeline', true);
 
-    mongoose.connect(dbString).then(() => {
+    mongoose.connect(dbString).catch((err) => {
+      console.log('Error: Unable to connect to database: %s', err);
+      exit(1);
+    }).then(() => {
       if (database == 'index') {
         db.check_stats(settings.coin.name, function(exists) {
           if (exists == false) {

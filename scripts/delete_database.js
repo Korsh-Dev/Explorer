@@ -166,7 +166,10 @@ if (lib.is_locked([deleteLockName]) == false) {
       console.log(`${settings.localization.script_launched }: ${process.pid}`);
 
     const mongoose = require('mongoose');
-    const dbString = `mongodb://${encodeURIComponent(settings.dbsettings.user)}:${encodeURIComponent(settings.dbsettings.password)}@${settings.dbsettings.address}:${settings.dbsettings.port}/${settings.dbsettings.database}`;
+    const auth = (settings.dbsettings.user != null && settings.dbsettings.user !== '')
+    ? `${encodeURIComponent(settings.dbsettings.user)}:${encodeURIComponent(settings.dbsettings.password)}@`
+    : '';
+  const dbString = `mongodb://${auth}${settings.dbsettings.address}:${settings.dbsettings.port}/${settings.dbsettings.database}`;
 
     console.log('Connecting to database..');
 

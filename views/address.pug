@@ -8,7 +8,7 @@ block content
     var lengthMenuOptsAdd = !{JSON.stringify(settings.address_page.history_table.page_length_options)};
     var lengthMenuOpts = [];
     var addedLength = false;
-    for (i = 0; i < lengthMenuOptsAdd.length; i++) {
+    for (let i = 0; i < lengthMenuOptsAdd.length; i++) {
       if (setting_maxTxCount >= lengthMenuOptsAdd[i]) {
         if (!addedLength) {
           if (lengthMenuOptsAdd[i] > setting_txPerPage) {

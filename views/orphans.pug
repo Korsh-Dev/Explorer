@@ -5,7 +5,7 @@ block content
     var setting_txPerPage = parseInt("#{settings.orphans_page.orphans_table.items_per_page}");
     var lengthMenuOpts = !{JSON.stringify(settings.orphans_page.orphans_table.page_length_options)};
     var addedLength = false;
-    for (i = 0; i < lengthMenuOpts.length; i++) {
+    for (let i = 0; i < lengthMenuOpts.length; i++) {
       if (!addedLength) {
         if (lengthMenuOpts[i] > setting_txPerPage) {
           lengthMenuOpts.splice(i, 0, setting_txPerPage);

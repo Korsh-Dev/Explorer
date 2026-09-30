@@ -27,17 +27,19 @@ function send_block_data(res, block, txs, title_text, orphan) {
 
 function finalize_send_block_data(res, block, txs, title_text, orphan, extracted_by_addresses) {
   if (block) {
-    block.difficulty = lib.format_decimal_string(new Decimal(block.difficulty.toString()), { minFractionDigits: 4, maxFractionDigits: 4 });
-    block.size = lib.format_decimal_string(new Decimal(block.size.toString()).div('1024'), { minFractionDigits: 2, maxFractionDigits: 2 });
+    if (block.difficulty != null)
+      block.difficulty = lib.format_decimal_string(new Decimal(block.difficulty.toString()), { minFractionDigits: 4, maxFractionDigits: 4 });
+    if (block.size != null)
+      block.size = lib.format_decimal_string(new Decimal(block.size.toString()).div('1024'), { minFractionDigits: 2, maxFractionDigits: 2 });
   }
 
-  txs.forEach(function (tx) {
-    // add a fixed value for display
-    if (tx.vout.length > 0)
-      tx['totalFixed'] = lib.format_decimal_string(new Decimal(tx.total.toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 });
-    else
-      tx['totalFixed'] = lib.format_decimal_string(new Decimal(tx.total.toString()), { minFractionDigits: 2, maxFractionDigits: 8 });
-  });
+  if (Array.isArray(txs)) {
+    txs.forEach(function (tx) {
+      // add a fixed value for display
+      if (tx && tx.total != null)
+        tx['totalFixed'] = lib.format_decimal_string(new Decimal(tx.total.toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 });
+    });
+  }
 
   res.render(
     'block',
@@ -87,15 +89,21 @@ function send_tx_data(res, tx, blockcount, orphan) {
 }
 
 function finalize_send_tx_data(res, tx, blockcount, orphan, extracted_by_addresses) {
-  tx.vin.forEach(function (vin) {
-    // add a fixed value for display
-    vin['amountFixed'] = lib.format_decimal_string(new Decimal(vin.amount.toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 });
-  });
+  if (tx && Array.isArray(tx.vin)) {
+    tx.vin.forEach(function (vin) {
+      // add a fixed value for display
+      if (vin && vin.amount != null)
+        vin['amountFixed'] = lib.format_decimal_string(new Decimal(vin.amount.toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 });
+    });
+  }
 
-  tx.vout.forEach(function (vout) {
-    // add a fixed value for display
-    vout['amountFixed'] = lib.format_decimal_string(new Decimal(vout.amount.toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 });
-  });
+  if (tx && Array.isArray(tx.vout)) {
+    tx.vout.forEach(function (vout) {
+      // add a fixed value for display
+      if (vout && vout.amount != null)
+        vout['amountFixed'] = lib.format_decimal_string(new Decimal(vout.amount.toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 });
+    });
+  }
 
   res.render(
     'tx',
@@ -110,14 +118,14 @@ function finalize_send_tx_data(res, tx, blockcount, orphan, extracted_by_address
       customHash: get_custom_hash(),
       styleHash: get_style_hash(),
       themeHash: get_theme_hash(),
-      page_title_prefix: settings.coin.name + ' ' + 'Transaction ' + tx.txid
+      page_title_prefix: settings.coin.name + ' ' + 'Transaction ' + (tx ? tx.txid : '')
     }
   );
 }
 
 function send_address_data(res, address, claim_name) {
-  const received = new Decimal(address.received.toString());
-  const sent = new Decimal(address.sent.toString());
+  const received = (address && address.received != null) ? new Decimal(address.received.toString()) : new Decimal(0);
+  const sent = (address && address.sent != null) ? new Decimal(address.sent.toString()) : new Decimal(0);
   const balanceString = lib.format_decimal_string(received.minus(sent).div('100000000'), { minFractionDigits: 2, maxFractionDigits: 8 });
   const receivedString = lib.format_decimal_string(received.div('100000000'), { minFractionDigits: 2, maxFractionDigits: 8 });
   const sentString = lib.format_decimal_string(sent.div('100000000'), { minFractionDigits: 2, maxFractionDigits: 8 });
@@ -683,11 +691,16 @@ router.get('/richlist', function(req, res) {
 
             // fix burned data for display
             if (richlist.burned != null && richlist.burned.length > 0) {
+              const burnedSupply = (stats && stats.supply) ? new Decimal(stats.supply.toString()) : new Decimal(0);
+              const burnedPercent = burnedSupply.gt(0)
+                ? new Decimal(richlist.burned[0].toString()).div(100000000).div(burnedSupply).mul(100)
+                : new Decimal(0);
+
               burned = {
                 total: new Decimal(richlist.burned[0].toString()).div(100000000),
-                percent: new Decimal(richlist.burned[0].toString()).div(100000000).div(stats.supply.toString()).mul(100),
+                percent: burnedPercent,
                 totalFixed: lib.format_decimal_string(new Decimal(richlist.burned[0].toString()).div(100000000), { minFractionDigits: 2, maxFractionDigits: 8 }),
-                percentFixed: lib.format_decimal_string(new Decimal(richlist.burned[0].toString()).div(100000000).div(stats.supply.toString()).mul(100), { minFractionDigits: 2, maxFractionDigits: 2 })
+                percentFixed: lib.format_decimal_string(burnedPercent, { minFractionDigits: 2, maxFractionDigits: 2 })
               };
             }
 

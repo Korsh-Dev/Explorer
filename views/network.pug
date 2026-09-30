@@ -4,7 +4,7 @@ block content
   script.
     function generateLengthMenu(setting_txPerPage, lengthMenuOpts) {
       var addedLength = false;
-      for (i = 0; i < lengthMenuOpts.length; i++) {
+      for (let i = 0; i < lengthMenuOpts.length; i++) {
         if (!addedLength) {
           if (lengthMenuOpts[i] > setting_txPerPage) {
             lengthMenuOpts.splice(i, 0, setting_txPerPage);

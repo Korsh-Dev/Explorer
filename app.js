@@ -487,7 +487,8 @@ app.use('/ext/getaddress/:hash', function(req, res) {
         if (address) {
           let last_txs = [];
 
-          for (let i = 0; i < txs.length; i++) {
+          if (Array.isArray(txs)) {
+            for (let i = 0; i < txs.length; i++) {
             if (typeof txs[i].txid !== "undefined") {
               let out = new Decimal('0');
               let vin = new Decimal('0');
@@ -512,6 +513,7 @@ app.use('/ext/getaddress/:hash', function(req, res) {
 
               last_txs.push(row);
             }
+          }
           }
 
           const a_ext = {
@@ -743,7 +745,8 @@ app.use('/ext/getaddresstxs/:address/:start/:length', function(req, res) {
     db.get_address_txs_ajax(req.params.address, req.params.start, req.params.length, function(txs, count) {
       let data = [];
 
-      for (let i = 0; i < txs.length; i++) {
+      if (Array.isArray(txs)) {
+        for (let i = 0; i < txs.length; i++) {
         if (typeof txs[i].txid !== "undefined") {
           const balance = new Decimal(txs[i].balance.toString());
           let out = new Decimal('0');
@@ -806,8 +809,9 @@ app.use('/ext/getaddresstxs/:address/:start/:length', function(req, res) {
           }
         }
       }
+    }
 
-      // check if this is an internal request
+    // check if this is an internal request
       if (internal) {
         // display data formatted for internal datatable
         res.json({"data": data, "recordsTotal": count, "recordsFiltered": count});
@@ -833,7 +837,7 @@ function get_connection_and_block_counts(get_data, cb) {
 }
 
 app.use('/ext/getsummary', function(req, res) {
-  const isInternal = (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1);
+  const isInternal = isInternalAjaxRequest(req);
 
   // check if the getsummary api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
   if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getsummary.enabled == true) || isInternal) {
@@ -918,8 +922,8 @@ app.use('/ext/getsummary', function(req, res) {
 });
 
 app.use('/ext/getnetworkpeers', function(req, res) {
-  // check if the getnetworkpeers api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getnetworkpeers.enabled == true) || (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1)) {
+  // check if the getnetworkpeers api is enabled or else check if it matches an internal ajax request from the explorer itself
+  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getnetworkpeers.enabled == true) || isInternalAjaxRequest(req)) {
     // split url suffix by forward slash and remove blank entries
     const split = req.url.split('/').filter(function(v) { return v; });
     let internal = false;

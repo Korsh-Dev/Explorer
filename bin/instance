@@ -7,7 +7,8 @@ var app = require('../app');
 app.set('port', process.env.PORT || settings.webserver.port);
 
 db.connect(null, function() {
-  var server = app.listen(app.get('port'), '::', function() {
+  var host = (settings.webserver && settings.webserver.bind_address) || '0.0.0.0';
+  var server = app.listen(app.get('port'), host, function() {
     debug('Express server listening on port ' + server.address().port);
   });
 

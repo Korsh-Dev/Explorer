@@ -7,7 +7,7 @@ block content
     var lengthMenuOptsAdd = !{JSON.stringify(settings.index_page.transaction_table.page_length_options)};
     var lengthMenuOpts = [];
     var addedLength = false;
-    for (i = 0; i < lengthMenuOptsAdd.length; i++) {
+    for (let i = 0; i < lengthMenuOptsAdd.length; i++) {
       if (setting_maxTxCount >= lengthMenuOptsAdd[i]) {
         if (!addedLength) {
           if (lengthMenuOptsAdd[i] > setting_txPerPage) {
@@ -84,21 +84,34 @@ block content
           }
 
           if (#{settings.index_page.show_extracted_by} == true) {
-            const extracted_by = JSON.parse(data.length > 6 && data[6 + offset].indexOf('extracted_by:') == 0 ? data[6 + offset].substring('extracted_by:'.length) : '');
+            let extracted_by = [];
+            try {
+              const rawData = (data.length > (6 + offset) && data[6 + offset].indexOf('extracted_by:') == 0) ? data[6 + offset].substring('extracted_by:'.length) : '[]';
+              extracted_by = JSON.parse(rawData || '[]');
+            } catch (e) {
+              extracted_by = [];
+            }
             const labels = !{JSON.stringify(settings.labels)};
             const active = '#{active}';
 
             let extracted_contents = '';
 
-            for (i = 0; i < extracted_by.length; i++) {
+            for (let i = 0; i < extracted_by.length; i++) {
               extracted_contents += '<div style="overflow: auto;">';
-              extracted_contents += `<a href='/address/${extracted_by[i].a_id}'>${(extracted_by[i].claimname == '' ? extracted_by[i].a_id : extracted_by[i].claimname)}</a>`;
+              const displayName = (extracted_by[i].claimname == null || extracted_by[i].claimname == '') ? extracted_by[i].a_id : extracted_by[i].claimname;
+              const safeDisplayName = $('<div>').text(displayName).html();
+              const safeAddress = encodeURIComponent(extracted_by[i].a_id);
+              extracted_contents += `<a href='/address/${safeAddress}'>${safeDisplayName}</a>`;
 
               if (labels[extracted_by[i].a_id] != null && labels[extracted_by[i].a_id].enabled == true) {
-                extracted_contents += `<label class="badge bg-${(labels[extracted_by[i].a_id].type == null || labels[extracted_by[i].a_id].type == '' ? 'default' : labels[extracted_by[i].a_id].type)} float-end d-none d-${active == 'richlist' ? 'md' : (active == 'tx' ? 'lg' : 'sm')}-block" style="margin-left:15px;margin-bottom:0;">${labels[extracted_by[i].a_id].label}`;
+                const labelText = $('<div>').text(labels[extracted_by[i].a_id].label).html();
+                const badgeType = (labels[extracted_by[i].a_id].type == null || labels[extracted_by[i].a_id].type == '' ? 'default' : labels[extracted_by[i].a_id].type);
+                extracted_contents += `<label class="badge bg-${badgeType} float-end d-none d-${active == 'richlist' ? 'md' : (active == 'tx' ? 'lg' : 'sm')}-block" style="margin-left:15px;margin-bottom:0;">${labelText}`;
 
-                if (labels[extracted_by[i].a_id].url)
-                  extracted_contents += `<a href="${labels[extracted_by[i].a_id].url}" target="_blank" alt="Visit site" title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa-solid fa-circle-question" style="margin-left:5px;" /></a>`;
+                if (labels[extracted_by[i].a_id].url) {
+                  const safeUrl = $('<div>').text(labels[extracted_by[i].a_id].url).html();
+                  extracted_contents += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" alt="Visit site" title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa-solid fa-circle-question" style="margin-left:5px;" /></a>`;
+                }
 
                 extracted_contents += `</label>`;
               }
