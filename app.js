@@ -1061,7 +1061,7 @@ app.use('/ext/getlastupdated/:section', function(req, res) {
       case 'movement':
         // lookup last updated date
         db.get_stats(settings.coin.name, function (stats) {
-          res.json({'last_updated_date': stats.blockchain_last_updated});
+          res.json({'last_updated_date': (stats && stats.blockchain_last_updated) ? stats.blockchain_last_updated : null});
         });
         break;
       default:
