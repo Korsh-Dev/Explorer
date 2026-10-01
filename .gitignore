@@ -7,4 +7,5 @@ logs/
 shot*.png
 .tempmediaStorage/
 scratch/
+data/
 
