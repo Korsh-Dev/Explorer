@@ -66,43 +66,31 @@ block content
     - theadClasses.push('table-' + settings.shared_pages.table_header_bgcolor);
   if settings.richlist_page.page_header.show_img == true || settings.richlist_page.page_header.show_title == true || settings.richlist_page.page_header.show_last_updated == true || settings.richlist_page.page_header.show_description == true
     .row(style='margin: 0 0 5px 0;')
-      div(class=(settings.richlist_page.wealth_distribution.show_distribution_table == true || settings.richlist_page.wealth_distribution.show_distribution_chart == true ? 'col-xs-12' : 'col-12'))
-        .container
-          #page-header-container(style='align-items:' + (settings.richlist_page.page_header.show_img == true && settings.richlist_page.page_header.show_title == true && settings.richlist_page.page_header.show_last_updated == true && settings.richlist_page.page_header.show_description == true ? 'flex-start' : 'center'))
-            if settings.richlist_page.page_header.show_img == true
-              #header-img-container
-                img#header-img(src=(settings.shared_pages.page_header.page_title_image == null || settings.shared_pages.page_header.page_title_image.image_path == null || settings.shared_pages.page_header.page_title_image.image_path == '' ? '/img/page-title-img.png' : settings.shared_pages.page_header.page_title_image.image_path))
-            #page-title-container
-              if settings.richlist_page.page_header.show_title == true
-                h3#page-title #{settings.localization.rl_title.replace('{1}', settings.coin.name)}
-              if settings.richlist_page.page_header.show_last_updated == true
-                if settings.richlist_page.page_header.show_title != true && settings.richlist_page.page_header.show_description != true
-                  #page-title-container
-                    .sub-page-header
-                      span.fw-bold=settings.localization.last_updated + ':'
-                      span.text-muted#lastUpdatedDate
-                else
-                  .sub-page-header(style='margin-bottom:' + (settings.richlist_page.page_header.show_description == true ? '5' : '0') + 'px')
-                    span.fw-bold=settings.localization.last_updated + ':'
-                    span.text-muted#lastUpdatedDate
-              if settings.richlist_page.page_header.show_description == true
-                if settings.richlist_page.page_header.show_title != true && settings.richlist_page.page_header.show_last_updated != true
-                  #page-title-container
-                    .sub-page-header.text-muted=settings.localization.rl_description.replace('{1}', settings.coin.name)
-                else
-                  .sub-page-header.text-muted=settings.localization.rl_description.replace('{1}', settings.coin.name)
-          .cardSpacer.clearfix
+      div(class=(settings.richlist_page.wealth_distribution.show_distribution_table == true || settings.richlist_page.wealth_distribution.show_distribution_chart == true ? 'col-12' : 'col-12'))
+        #page-header-container(style='align-items:' + (settings.richlist_page.page_header.show_img == true && settings.richlist_page.page_header.show_title == true && settings.richlist_page.page_header.show_last_updated == true && settings.richlist_page.page_header.show_description == true ? 'flex-start' : 'center'))
+          if settings.richlist_page.page_header.show_img == true
+            #header-img-container
+              img#header-img(src=(settings.shared_pages.page_header.page_title_image == null || settings.shared_pages.page_header.page_title_image.image_path == null || settings.shared_pages.page_header.page_title_image.image_path == '' ? '/img/page-title-img.png' : settings.shared_pages.page_header.page_title_image.image_path))
+          #page-title-container
+            if settings.richlist_page.page_header.show_title == true
+              h3#page-title #{settings.localization.rl_title.replace('{1}', settings.coin.name)}
+            if settings.richlist_page.page_header.show_last_updated == true
+              .sub-page-header(style='margin-bottom:' + (settings.richlist_page.page_header.show_description == true ? '5' : '0') + 'px')
+                span.fw-bold=settings.localization.last_updated + ':'
+                span.text-muted#lastUpdatedDate
+            if settings.richlist_page.page_header.show_description == true
+              .sub-page-header.text-muted=settings.localization.rl_description.replace('{1}', settings.coin.name)
+        .cardSpacer.clearfix
   .row(style='margin-left:0;margin-right:0;')
     if settings.richlist_page.show_current_balance == true || settings.richlist_page.show_received_coins == true
-      div(class=(settings.richlist_page.wealth_distribution.show_distribution_table == true || settings.richlist_page.wealth_distribution.show_distribution_chart == true ? 'col-xs-12 col-lg-8' : 'col-12'))
-        .container
-          ul.nav.nav-tabs(role='tablist')
-            if settings.richlist_page.show_current_balance == true
-              li.nav-item(role='presentation')
-                a(class='nav-link' + (settings.richlist_page.show_current_balance == true ? ' active' : ''), href='#balance', aria-controls='balance', role='tab', data-bs-toggle='tab') #{settings.localization.rl_current_balance}
-            if settings.richlist_page.show_received_coins == true
-              li.nav-item(role='presentation')
-                a(class='nav-link' + (!settings.richlist_page.show_current_balance ? ' active' : ''), href='#received', aria-controls='received', role='tab', data-bs-toggle='tab') #{settings.localization.rl_received_coins}
+      div(class=(settings.richlist_page.wealth_distribution.show_distribution_table == true || settings.richlist_page.wealth_distribution.show_distribution_chart == true ? 'col-12 col-lg-8' : 'col-12'))
+        ul.nav.nav-tabs(role='tablist')
+          if settings.richlist_page.show_current_balance == true
+            li.nav-item(role='presentation')
+              a(class='nav-link' + (settings.richlist_page.show_current_balance == true ? ' active' : ''), href='#balance', aria-controls='balance', role='tab', data-bs-toggle='tab') #{settings.localization.rl_current_balance}
+          if settings.richlist_page.show_received_coins == true
+            li.nav-item(role='presentation')
+              a(class='nav-link' + (!settings.richlist_page.show_current_balance ? ' active' : ''), href='#received', aria-controls='received', role='tab', data-bs-toggle='tab') #{settings.localization.rl_received_coins}
         .tab-content
           if settings.richlist_page.show_current_balance == true
             #balance(class='container tab-pane' + (settings.richlist_page.show_current_balance == true ? ' active' : ''), style='margin-top:0;')
@@ -163,7 +151,7 @@ block content
                         td.text-center #{itemFixedParts[0]}.
                           span.decimal #{itemFixedParts[1]}
     if settings.richlist_page.wealth_distribution.show_distribution_table == true || settings.richlist_page.wealth_distribution.show_distribution_chart == true
-      div(class=(settings.richlist_page.show_received_coins == true || settings.richlist_page.show_current_balance == true ? 'col-xs-12 col-lg-4' : 'col-12'))
+      div(class=(settings.richlist_page.show_received_coins == true || settings.richlist_page.show_current_balance == true ? 'col-12 col-lg-4' : 'col-12'))
         if settings.richlist_page.wealth_distribution.show_distribution_table == true
           #summary-panel.card.card-default.border-0(style='margin-top:' + (settings.richlist_page.show_current_balance == true || settings.richlist_page.show_received_coins == true ? '34' : '0') + 'px;')
             .card-header

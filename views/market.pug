@@ -81,7 +81,7 @@ block content
           }
         });
       });
-  .col-xs-12.col-md-12
+  .col-12.col-md-12
     if settings.markets_page.page_header.show_img == true || settings.markets_page.page_header.show_title == true || settings.markets_page.page_header.show_last_updated == true || (settings.markets_page.page_header.show_exchange_url == true && marketdata.url != null && marketdata.url != '') || settings.markets_page.page_header.show_description == true
       #page-header-container(style='align-items:' + (settings.markets_page.page_header.show_img == true && settings.markets_page.page_header.show_title == true && ((settings.markets_page.page_header.show_last_updated == true && settings.markets_page.page_header.show_description == true) || ((settings.markets_page.page_header.show_exchange_url == true && marketdata.url != null && marketdata.url != '') && settings.markets_page.page_header.show_description == true) || ((settings.markets_page.page_header.show_exchange_url == true && marketdata.url != null && marketdata.url != '') && settings.markets_page.page_header.show_last_updated == true)) ? 'flex-start' : 'center'))
         if settings.markets_page.page_header.show_img == true
@@ -396,7 +396,7 @@ block content
                 .card-body
                   canvas#chart(style='height:300px;')
         .row
-          .col-md-6.col-xs-12.cardSpacer
+          .col-12.col-md-6.cardSpacer
             .card.card-default.border-0.wrapper-border-0(class=theadClasses)
               .card-header(style='border-bottom-width:1px;')
                 if marketdata.market_logo != null && marketdata.market_logo != ''
@@ -424,7 +424,7 @@ block content
                           span.decimal #{splitQuantity[1]}
                         td.text-center #{splitTotal[0]}.
                           span.decimal #{splitTotal[1]}
-          .col-md-6.col-xs-12.cardSpacer
+          .col-12.col-md-6.cardSpacer
             .card.card-default.border-0.wrapper-border-0(class=theadClasses)
               .card-header(style='border-bottom-width:1px;')
                 if marketdata.market_logo != null && marketdata.market_logo != ''

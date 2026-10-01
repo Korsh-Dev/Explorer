@@ -4,3 +4,7 @@ settings.json
 node_modules/
 tmp/
 logs/
+shot*.png
+.tempmediaStorage/
+scratch/
+

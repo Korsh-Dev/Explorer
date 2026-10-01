@@ -3,6 +3,7 @@
   "version": "1.103.0",
   "private": true,
   "scripts": {
+    "preview": "node ./scripts/compile_css.js && node ./scripts/start_local_preview.js",
     "start": "node --stack-size=10000 ./bin/cluster",
     "stop": "node ./scripts/stop_explorer.js",
     "start-instance": "npm run prestart && node --stack-size=10000 ./bin/cluster 1",
@@ -50,6 +51,7 @@
   "devDependencies": {
     "forever": "^4.0.3",
     "jasmine": "^6.1.0",
+    "mongodb-memory-server": "^11.3.0",
     "pm2": "^7.0.1"
   },
   "overrides": {

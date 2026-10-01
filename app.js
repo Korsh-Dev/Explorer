@@ -867,10 +867,13 @@ app.use('/ext/getsummary', function(req, res) {
                     difficulty = (isInternal ? lib.format_decimal_string(new Decimal(difficulty['proof-of-work'].toString()), { minFractionDigits: 2, maxFractionDigits: 8 }) : new Decimal(difficulty['proof-of-work'].toString()).toString());
                   else
                     difficulty = (isInternal ? lib.format_decimal_string(new Decimal(difficulty['proof-of-stake'].toString()), { minFractionDigits: 2, maxFractionDigits: 8 }) : new Decimal(difficulty['proof-of-stake'].toString()).toString());
-                } else
+                } else if (difficulty != null && difficulty !== '' && difficulty !== `${settings.localization.ex_error}: ${settings.localization.check_console}`) {
                   difficulty = (isInternal ? lib.format_decimal_string(new Decimal(difficulty.toString()), { minFractionDigits: 2, maxFractionDigits: 8 }) : new Decimal(difficulty.toString()).toString());
+                } else {
+                  difficulty = null;
+                }
 
-                if (hashrate == `${settings.localization.ex_error}: ${settings.localization.check_console}`)
+                if (hashrate == null || hashrate == '-' || isNaN(parseFloat(hashrate)) || hashrate == `${settings.localization.ex_error}: ${settings.localization.check_console}`)
                   hashrate = 0;
 
                 let mn_total = 0;
@@ -892,7 +895,7 @@ app.use('/ext/getsummary', function(req, res) {
                   difficulty: (difficulty == null || difficulty == '' ? '-' : difficulty),
                   difficultyHybrid: difficultyHybrid,
                   supply: new Decimal(stats == null || stats.supply == null ? '0' : stats.supply.toString()).toFixed(),
-                  hashrate: new Decimal(hashrate.toString()).toFixed(),
+                  hashrate: new Decimal((hashrate || 0).toString()).toFixed(),
                   lastPrice: new Decimal(stats == null || stats.last_price == null ? '0' : stats.last_price.toString()).toFixed(),
                   lastUSDPrice: new Decimal(stats == null || stats.last_usd_price == null ? '0' : stats.last_usd_price.toString()).toFixed(),
                   connections: (connections ? connections : '-'),
@@ -907,7 +910,7 @@ app.use('/ext/getsummary', function(req, res) {
                   send_data.lastPrice = lib.format_decimal_string(new Decimal(send_data.lastPrice.toString()), { minFractionDigits: 2, maxFractionDigits: 8 });
                   send_data.lastUSDPrice = lib.format_decimal_string(new Decimal(send_data.lastUSDPrice.toString()), { minFractionDigits: 2, maxFractionDigits: 8 });
                   send_data.supply = lib.format_decimal_string(new Decimal(new Decimal(send_data.supply.toString()).toFixed(0)), { minFractionDigits: 0, maxFractionDigits: 0 });
-                  send_data.hashrate = lib.format_decimal_string(new Decimal(hashrate.toString()), { minFractionDigits: 2, maxFractionDigits: 8 });
+                  send_data.hashrate = lib.format_decimal_string(new Decimal((hashrate || 0).toString()), { minFractionDigits: 2, maxFractionDigits: 8 });
                 }
 
                 res.send(send_data);
@@ -1243,6 +1246,7 @@ settings.api_page.public_apis.rpc.getmasternodelist = { "enabled": false };
 
 // locals
 app.set('explorer_version', package_metadata.version);
+settings.explorer_version = package_metadata.version;
 app.set('localization', settings.localization);
 app.set('coin', settings.coin);
 app.set('network_history', settings.network_history);

@@ -15,7 +15,7 @@ block content
       if (#{settings.shared_pages.page_header.page_title_image.enable_animation} == true && #{settings.transaction_page.page_header.show_img} == true)
         startRotateElement('img#header-img');
     });
-  .col-xs-12.col-md-12
+  .col-12.col-md-12
     if orphan != null && orphan == true
       .col-12
         .alert.alert-warning.alert-dismissible.fade.show(role='alert')
@@ -33,15 +33,14 @@ block content
           if settings.transaction_page.page_header.show_title == true
             h3#page-title #{settings.localization.tx_title.replace('{1}', settings.coin.name)}
           if settings.transaction_page.page_header.show_description == true
-            if settings.transaction_page.page_header.show_title != true
-              #page-title-container
-                .sub-page-header.text-muted=settings.localization.tx_description.replace('{1}', settings.coin.name).replace('{2}', tx.blockindex)
-            else
-              .sub-page-header.text-muted=settings.localization.tx_description.replace('{1}', settings.coin.name).replace('{2}', tx.blockindex)
+            .sub-page-header.text-muted=settings.localization.tx_description.replace('{1}', settings.coin.name).replace('{2}', tx.blockindex)
       .cardSpacer.clearfix
     .card.card-default.border-0.cardSpacer
       .card-header
-        strong=settings.localization.tx_hash + ': ' + tx.txid
+        strong #{settings.localization.tx_hash}: 
+          span.mono.breakWord #{tx.txid}
+        button.btn.btn-sm.btn-copy.ms-2(type='button', data-copy=tx.txid, title='Copy Transaction Hash')
+          i.fa-regular.fa-copy
         if settings.api_page.public_apis.rpc.getrawtransaction.enabled == true
           a.d-none.d-md-inline(href=`/api/getrawtransaction?txid=${tx.txid}&decrypt=1`, style='color: var(--bs-body-color);')
             span.fa-solid.fa-circle-info.float-end(data-bs-toggle='tooltip', data-bs-placement='top', title=settings.localization.view_raw_tx_data)

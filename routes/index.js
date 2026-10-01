@@ -177,7 +177,7 @@ function get_last_updated_date(show_last_updated, last_updated_field, cb) {
     // lookup the stats record
     db.get_stats(settings.coin.name, function (stats) {
       // return the last updated date
-      return cb(stats[last_updated_field]);
+      return cb(stats ? stats[last_updated_field] : null);
     });
   } else {
     return cb(null);

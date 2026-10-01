@@ -1474,15 +1474,10 @@ if (lib.is_locked([database]) == false) {
                     rateLimit.schedule(function() {
                       // call an external geo location api to determine which country the current peer is from
                       lib.get_geo_location(address, function(error, geo) {
-                        // check if an error was returned
-                        if (error) {
-                          console.log(error);
-                          exit(1);
-                        } else if (geo == null || typeof geo != 'object') {
-                          console.log(`Error: geolocation api returned unexpected results for ip address ${address}`);
-                          exit(1);
-                        } else {
-                          // add the geolocation data to the new peer record(s)
+                        if (error || geo == null || typeof geo != 'object') {
+                          geo = { country_name: 'Unknown', country_code: '' };
+                        }
+                        // add the geolocation data to the new peer record(s)
                           newPeers.forEach(function (newPeer) {
                             newPeer.country = geo.country_name;
                             newPeer.country_code = geo.country_code;
@@ -1500,7 +1495,6 @@ if (lib.is_locked([database]) == false) {
                             // move to next peer
                             loop();
                           }
-                        }
                       });
                     });
                   } else {

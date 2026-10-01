@@ -10,9 +10,9 @@
   // dbsettings: a collection of settings that allow the explorer to connect to MongoDB
   "dbsettings": {
     // user: The MongoDB username
-    "user": "eiquidus",
+    "user": "",
     // password: The MongoDB password
-    "password": "Nd^p2d77ceBX!L",
+    "password": "korsh_mainnet_secret_pass_777",
     // database: The MongoDB database name (default: explorerdb)
     "database": "explorerdb",
     // address: The MongoDB hostname. This should always be 'localhost' if connecting to a local instance, otherwise specify the ip address of a remote instance
@@ -26,11 +26,11 @@
     // host: The hostname or ip address of the wallet to connect to (default: localhost)
     "host": "localhost",
     // port: The port # that the wallet is configured to listen for RPC requests on (default: 51573 for Exor wallet)
-    "port": 51573,
+    "port": 9776,
     // username: The wallet RPC username
-    "username": "exorrpc",
+    "username": "korshrpc",
     // password: The wallet RPC password
-    "password": "sSTLyCkrD94Y8&9mr^m6W^Mk367Vr!!K"
+    "password": "korsh_mainnet_secret_pass_777"
   },
 
   // webserver: a collection of settings that pertain to the node.js express web framework (read more: https://www.npmjs.com/package/express)
@@ -77,9 +77,9 @@
   "coin": {
     // name: Name of the cryptocurrency coin being explored. This value is displayed in the page header when the "shared_pages.page_header.home_link" setting is set to "coin".
     //       NOTE: This value acts as a unique identifier for data stored in mongo and therefore cannot be changed without re-syncing all existing data.
-    "name": "Exor",
+    "name": "Korsh",
     // symbol: The cryptocurrency coin ticker/symbol value. This value is displayed anywhere that coin data is displayed including the index, address, block, movement, reward, richlist/top100 and tx pages
-    "symbol": "EXOR"
+    "symbol": "KSH"
   },
 
   // network_history: a collection of settings that controls saving of extra historical network data during a block sync
@@ -100,9 +100,9 @@
     // theme: Change the look & feel of the explorer with a unique theme. Uses bootswatch themes (https://bootswatch.com)
     //        Valid options: Cerulean, Cosmo, Cyborg, Darkly, Exor, Flatly, Journal, Litera, Lumen, Lux, Materia, Minty, Morph, Pulse, Quartz, Sandstone, Simplex, Sketchy, Slate, Solar, Spacelab, Superhero, United, Vapor, Yeti, Zephyr
     //        (see /public/css/themes for available themes)
-    "theme": "Exor",
+    "theme": "Darkly",
     // page_title: The text to display at the end of the HTML title tag and also displayed in the page header when the "shared_pages.page_header.home_link" setting is set to "title"
-    "page_title": "eIquidus",
+    "page_title": "Korsh Explorer",
     // favicons: a collection of image or icon files that are displayed in a browser window/tab and serve as branding for your website. Their main purpose is to help visitors locate your page easier when they have multiple tabs open
     //          Modern favicon sizes were inspired by this web article: https://www.emergeinteractive.com/insights/detail/The-Essentials-of-FavIcons/
     //          NOTE: If any of the favicons are left blank or not set to a valid file, they will be disabled and unused
@@ -124,7 +124,7 @@
     //       This logo can also be displayed in the header when the "shared_pages.page_header.home_link" setting is set to "logo" and the "shared_pages.page_header.home_link_logo" setting is blank or an invalid file
     //       NOTE: The path root is /public
     //             The optimum logo size is 128x128 as the image will be forced to 128px high when displayed
-    "logo": "/img/logo.png",
+    "logo": "/img/korsh.png",
     // date_time: a collection of settings that pertain to the date and time values displayed in the explorer
     "date_time": {
       // display_format: The format to use when displaying date/time values
@@ -153,7 +153,7 @@
     //             POW: Display the proof-of-work difficulty value
     //             POS: Display the proof-of-stake difficulty value
     //             Hybrid: Display both the proof-of-work and proof-of-stake difficulty values
-    "difficulty": "POS",
+    "difficulty": "POW",
     // show_hashrate: Determine whether to show network hash rate where applicable (true/false)
     //                If set to false, the /api/getnetworkhashps and /ext/getsummary apis will no longer show hash rate information, and the network hashrate chart will automatically be disabled
     "show_hashrate": true,
@@ -178,7 +178,7 @@
       //                 NOTE: The path root is /public
       "home_link_logo": "/img/header-logo.png",
       // home_link_logo_height: The max-height value of the "shared_pages.page_header.home_link" logo image (value in px, only valid if "shared_pages.page_header.home_link" = 'logo')
-      "home_link_logo_height": 50,
+      "home_link_logo_height": 38,
       // panels: a collection of settings that pertain to the panels displayed on page header of all pages (NOTE: you can show/hide the entire group of panels on each page independently by changing the show_panels value in the settings for each page)
       //         A maximum of 5 panels can be shown across the top of the page at any time, so if more than 5 are enabled, only the first 5 will be shown
       "panels": {
@@ -186,11 +186,11 @@
         "network_panel": {
           // enabled: Enable/disable the network panel (true/false)
           //          If set to false, the network panel will be completely inaccessible
-          "enabled": false,
+          "enabled": true,
           // display_order: Determine which order this panel is shown from 1-5
           //                1 = far left panel, 5 = far right panel
           //                The panel will be disabled with a value of 0
-          "display_order": 0,
+          "display_order": 1,
           // nethash: Determine how to acquire network hashrate. Valid options:
           //          getnetworkhashps: retrieved from getnetworkhashps rpc cmd
           //          netmhashps: retrieved from getmininginfo rpc cmd
@@ -202,17 +202,17 @@
           //                M: Display value in megahashes (MH/s)
           //                K: Display value in kilohashes (KH/s)
           //                H: Display value in hashes (H/s)
-          "nethash_units": "G"
+          "nethash_units": "M"
         },
         // difficulty_panel: a collection of settings that pertain to the difficulty panel which displays the current proof-of-work difficulty (only applicable to POW coins)
         "difficulty_panel": {
           // enabled: Enable/disable the difficulty panel (true/false)
           //          If set to false, the difficulty panel will be completely inaccessible
-          "enabled": false,
+          "enabled": true,
           // display_order: Determine which order this panel is shown from 1-5
           //                1 = far left panel, 5 = far right panel
           //                The panel will be disabled with a value of 0
-          "display_order": 0
+          "display_order": 2
         },
         // masternodes_panel: a collection of settings that pertain to the masternode panel which displays a count of online and unreachable masternodes (only applicable to masternode coins)
         "masternodes_panel": {
@@ -222,7 +222,7 @@
           // display_order: Determine which order this panel is shown from 1-5
           //                1 = far left panel, 5 = far right panel
           //                The panel will be disabled with a value of 0
-          "display_order": 2
+          "display_order": 5
         },
         // coin_supply_panel: a collection of settings that pertain to the coin supply panel which displays the current circulating coin supply value
         "coin_supply_panel": {
@@ -232,7 +232,7 @@
           // display_order: Determine which order this panel is shown from 1-5
           //                1 = far left panel, 5 = far right panel
           //                The panel will be disabled with a value of 0
-          "display_order": 1
+          "display_order": 4
         },
         // price_panel: a collection of settings that pertain to the price panel which displays the current market price as determined by the markets_page.market_price value
         "price_panel": {
@@ -248,11 +248,11 @@
         "usd_price_panel": {
           // enabled: Enable/disable the usd price panel (true/false)
           //          If set to false, the usd price panel will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // display_order: Determine which order this panel is shown from 1-5
           //                1 = far left panel, 5 = far right panel
           //                The panel will be disabled with a value of 0
-          "display_order": 4
+          "display_order": 0
         },
         // market_cap_panel: a collection of settings that pertain to the market cap panel which displays the current market cap value as determined by the markets_page.market_price value
         "market_cap_panel": {
@@ -268,11 +268,11 @@
         "usd_market_cap_panel": {
           // enabled: Enable/disable the usd market cap panel (true/false)
           //          If set to false, the usd market cap panel will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // display_order: Determine which order this panel is shown from 1-5
           //                1 = far left panel, 5 = far right panel
           //                The panel will be disabled with a value of 0
-          "display_order": 5
+          "display_order": 0
         },
         // logo_panel: a collection of settings that pertain to the logo panel which displays the "shared_pages.logo" image
         "logo_panel": {
@@ -395,19 +395,19 @@
           // bgcolor: Change the background color of the network hashrate chart
           //          Set this to any valid html color
           //          Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "bgcolor": "#ffffff",
+          "bgcolor": "transparent",
           // line_color: Change the line color of the network hashrate chart
           //             Set this to any valid html color
           //             Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "line_color": "rgba(54, 162, 235, 1)",
+          "line_color": "#00CC52",
           // fill_color: Change the fill color of the network hashrate chart
           //             Set this to any valid html color
           //             Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "fill_color": "rgba(54, 162, 235, 0.2)",
+          "fill_color": "rgba(0, 204, 82, 0.15)",
           // crosshair_color: Change the vertical crosshair line color of the network hashrate chart
           //             Set this to any valid html color
           //             Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "crosshair_color": "#000000",
+          "crosshair_color": "#00CC52",
           // block_line: A collection of settings that pertain to the vertical block line on the network hashrate chart
           "block_line": {
             // enabled: Enable/disable the vertical block line (true/false)
@@ -490,27 +490,27 @@
           // bgcolor: Change the background color of the network difficulty chart
           //          Set this to any valid html color
           //          Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "bgcolor": "#ffffff",
+          "bgcolor": "transparent",
           // pow_line_color: Change the line color of the network difficulty chart for POW coins
           //                 Set this to any valid html color
           //                 Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "pow_line_color": "rgba(255, 99, 132, 1)",
+          "pow_line_color": "#00E65C",
           // pow_fill_color: Change the fill color of the network difficulty chart for POW coins
           //                 Set this to any valid html color
           //                 Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "pow_fill_color": "rgba(255, 99, 132, 0.2)",
+          "pow_fill_color": "rgba(0, 204, 82, 0.18)",
           // pos_line_color: Change the line color of the network difficulty chart for POS coins
           //                 Set this to any valid html color
           //                 Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "pos_line_color": "rgba(255, 161, 0, 1)",
+          "pos_line_color": "#00CC52",
           // pos_fill_color: Change the fill color of the network difficulty chart for POS coins
           //                 Set this to any valid html color
           //                 Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "pos_fill_color": "rgba(255, 161, 0, 0.2)",
+          "pos_fill_color": "rgba(0, 204, 82, 0.15)",
           // crosshair_color: Change the vertical crosshair line color of the network difficulty chart
           //             Set this to any valid html color
           //             Ex: "#ffffff" or "rgba(255, 255, 255, 1)" or "white"
-          "crosshair_color": "#000000",
+          "crosshair_color": "#00CC52",
           // block_line: A collection of settings that pertain to the vertical block line on the network difficulty chart
           "block_line": {
             // enabled: Enable/disable the vertical block line (true/false)
@@ -575,7 +575,7 @@
           // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Github
           "tooltip_text": "Github",
           // url: The exact url that the social link should navigate to
-          "url": "https://github.com/team-exor",
+          "url": "https://github.com/Korsh-Dev/Explorer",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fa-brands fa-github",
           // image_path: The path to an image file that will be displayed for this social link
@@ -585,11 +585,11 @@
         {
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Twitter
           "tooltip_text": "Twitter",
           // url: The exact url that the social link should navigate to
-          "url": "https://twitter.com/ExorOfficial",
+          "url": "https://twitter.com/KorshOfficial",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fa-brands fa-twitter",
           // image_path: The path to an image file that will be displayed for this social link
@@ -599,11 +599,11 @@
         {
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Discord
           "tooltip_text": "Discord",
           // url: The exact url that the social link should navigate to
-          "url": "https://discord.gg/dSuGm3y",
+          "url": "https://discord.gg/korsh",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fa-brands fa-discord",
           // image_path: The path to an image file that will be displayed for this social link
@@ -613,11 +613,11 @@
         {
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Telegram
           "tooltip_text": "Telegram",
           // url: The exact url that the social link should navigate to
-          "url": "https://t.me/Exorofficial",
+          "url": "https://t.me/korsh",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fa-brands fa-telegram",
           // image_path: The path to an image file that will be displayed for this social link
@@ -627,11 +627,11 @@
         {
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Website
           "tooltip_text": "Website",
           // url: The exact url that the social link should navigate to
-          "url": "https://exor.io",
+          "url": "https://korsh.org",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "",
           // image_path: The path to an image file that will be displayed for this social link
@@ -641,11 +641,11 @@
         {
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
-          "enabled": true,
+          "enabled": false,
           // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Coingecko
           "tooltip_text": "Coingecko",
           // url: The exact url that the social link should navigate to
-          "url": "https://www.coingecko.com/en/coins/exor",
+          "url": "https://www.coingecko.com/en/coins/korsh",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "",
           // image_path: The path to an image file that will be displayed for this social link
@@ -1025,7 +1025,7 @@
       "show_distribution_chart": true,
       // colors: An array of html color codes to represent the top 100 groupings in the wealth distribution table and pie chart
       //         From left-to-right the 6 colors are represented as the following: "top 1-25", "top 26-50", "top 51-75", "top 76-100", "101+" and "burned coins" - which is used if the include_burned_coins_in_distribution setting is enabled
-      "colors": [ "#e73cbd", "#00bc8c", "#3498db", "#e3ce3e", "#adb5bd", "#e74c3c" ],
+      "colors": [ "#00CC52", "#047857", "#10B981", "#34D399", "#065F46", "#FF4D4D" ],
       // show_address_count: Show/hide the total count of all unique addresses used in at least 1 transaction at the bottom of the wealth distribution table
       //                     If set to true, the address count will be determined at the end of the richlist sync and displayed in the wealth distribution table
       //                     If set to false, the richlist sync will finish faster because the address count will not be looked up and not displayed in the wealth distribution table
@@ -1536,7 +1536,7 @@
     //         HEAVY: retrieved from getsupply rpc cmd (The "blockchain_specific.heavycoin.enabled" setting must be set to true and the "blockchain_specific.heavycoin.api_cmds.getsupply" setting must be set up correctly for this option to work properly)
     //         BALANCES : get the supply by running a query on the addresses collection and summing up all positive balances (potentially a long running query for blockchains with tons of addresses)
     //         TXOUTSET : retrieved from gettxoutsetinfo rpc cmd
-    "supply": "GETINFO",
+    "supply": "TXOUTSET",
     // batch_size: The maximum number of records before saving data to the database.
     //             This value is used for syncing transactions, addresses and address transactions.
     //             Each record type is processed within a single block so batching only happens if there are more than `batch_size` txes in a single block for example.
@@ -1696,9 +1696,9 @@
     // getvotelist: Returns an object with details regarding the current vote list
     "getvotelist": "masternodelist votes",
     // getmasternodecount: Returns a json object containing the total number of masternodes on the network
-    "getmasternodecount": "getmasternodecount",
+    "getmasternodecount": "masternode count",
     // getmasternodelist: Returns a json array containing status information for all masternodes on the network
-    "getmasternodelist": "listmasternodes",
+    "getmasternodelist": "masternodelist",
     // verifymessage: Verify a signed message. Must accept the following arguments:
     //                address: The wallet address to use for the signature
     //                signature: The signature provided by the signer in base 64 encoding
@@ -1880,7 +1880,7 @@
     // user: The MongoDB username used only for the benchmark script
     "user": "eiquidus",
     // password: The MongoDB password used only for the benchmark script
-    "password": "Nd^p2d77ceBX!L",
+    "password": "korsh_mainnet_secret_pass_777",
     // database: The MongoDB database name used only for the benchmark script
     "database": "explorer-benchmark",
     // address: The MongoDB hostname. This should always be 'localhost' if connecting to a local instance, otherwise specify the ip address of a remote instance

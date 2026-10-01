@@ -27,7 +27,7 @@ block content
       if (#{settings.shared_pages.page_header.page_title_image.enable_animation} == true && #{settings.block_page.page_header.show_img} == true)
         startRotateElement('img#header-img');
     });
-  .col-xs-12.col-md-12
+  .col-12.col-md-12
     if orphan != null && orphan == true
       .col-12
         .alert.alert-warning.alert-dismissible.fade.show(role='alert')
@@ -45,11 +45,7 @@ block content
           if settings.block_page.page_header.show_title == true
             h3#page-title #{settings.localization.block_title.replace('{1}', settings.coin.name)}
           if settings.block_page.page_header.show_description == true
-            if settings.block_page.page_header.show_title != true
-              #page-title-container
-                .sub-page-header.text-muted=settings.localization.block_description.replace('{1}', settings.coin.name).replace('{2}', block.height)
-            else
-              .sub-page-header.text-muted=settings.localization.block_description.replace('{1}', settings.coin.name).replace('{2}', block.height)
+            .sub-page-header.text-muted=settings.localization.block_description.replace('{1}', settings.coin.name).replace('{2}', block.height)
       .cardSpacer.clearfix
     .card.card-default.border-0.cardSpacer
       .card-header
@@ -57,10 +53,16 @@ block content
           if block.previousblockhash != null
             a(href='/block/' + block.previousblockhash)
               span.fa-solid.fa-chevron-left.block-last(data-bs-toggle='tooltip', data-bs-placement='top', title=settings.localization.block_previous, style='color: var(--bs-body-color);')
-            strong.d-none.d-md-block #{settings.localization.tx_block_hash}: #{block.hash}
+            strong.d-none.d-md-block #{settings.localization.tx_block_hash}: 
+              span.mono.breakWord #{block.hash}
+            button.btn.btn-sm.btn-copy.ms-2(type='button', data-copy=block.hash, title='Copy Block Hash')
+              i.fa-regular.fa-copy
             strong.d-block.d-md-none #{settings.localization.ex_summary}
           else
-            strong.d-none.d-md-block(style='margin-left:10px;') #{settings.localization.tx_block_hash}: #{block.hash}
+            strong.d-none.d-md-block(style='margin-left:10px;') #{settings.localization.tx_block_hash}: 
+              span.mono.breakWord #{block.hash}
+            button.btn.btn-sm.btn-copy.ms-2(type='button', data-copy=block.hash, title='Copy Block Hash')
+              i.fa-regular.fa-copy
             strong.d-block.d-md-none(style='margin-left:10px;') #{settings.localization.ex_summary}
           if block.nextblockhash != null
             a(href='/block/' + block.nextblockhash)

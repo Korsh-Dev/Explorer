@@ -187,21 +187,11 @@ block content
           if settings.index_page.page_header.show_title == true
             h3#page-title #{settings.localization.ex_title.replace('{1}', settings.coin.name)}
           if settings.index_page.page_header.show_last_updated == true
-            if settings.index_page.page_header.show_title != true && settings.index_page.page_header.show_description != true
-              #page-title-container
-                .sub-page-header
-                  span.fw-bold=settings.localization.last_updated + ':'
-                  span.text-muted#lastUpdatedDate
-            else
-              .sub-page-header(style='margin-bottom:' + (settings.index_page.page_header.show_description == true ? '5' : '0') + 'px')
-                span.fw-bold=settings.localization.last_updated + ':'
-                span.text-muted#lastUpdatedDate
+            .sub-page-header(style='margin-bottom:' + (settings.index_page.page_header.show_description == true ? '5' : '0') + 'px')
+              span.fw-bold=settings.localization.last_updated + ':'
+              span.text-muted#lastUpdatedDate
           if settings.index_page.page_header.show_description == true
-            if settings.index_page.page_header.show_title != true && settings.index_page.page_header.show_last_updated != true
-              #page-title-container
-                .sub-page-header.text-muted=settings.localization.ex_description.replace('{1}', settings.coin.name)
-            else
-              .sub-page-header.text-muted=settings.localization.ex_description.replace('{1}', settings.coin.name)
+            .sub-page-header.text-muted=settings.localization.ex_description.replace('{1}', settings.coin.name)
       .cardSpacer.clearfix
     .card.card-default.border-0.cardSpacer
       .card-header
